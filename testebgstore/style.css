@@ -1,0 +1,304 @@
+@charset "UTF8";
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Bebas+Neue&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+
+    
+body {
+    background-color: rgb(255, 255, 255);
+    margin:0px;
+}
+header {
+    padding: 20px;
+    background-color: rgb(0, 0, 0);
+
+}
+header > h1 {
+
+    text-align: center;
+    font-family: "Bangers", system-ui;
+    font-weight: 400;
+    font-style: normal;
+    font-size: 50px;
+    text-align: center;
+    color: rgb(255, 255, 255);
+}
+nav > a {
+    text-decoration: none;
+    color: white;
+    padding: 15px;
+    font-weight: bolder;
+}
+main {
+    
+    padding-bottom: 20px;
+    min-width: 320px;
+    max-width: 1500px;
+    margin: auto;
+}
+div.flamengo {
+    margin: auto;
+    background-color: rgb(255, 255, 255);
+    margin-top: 23px;
+    width: 320px;
+    padding-bottom: 50px;
+    border-radius: 20px;
+    text-align: center;
+    color: rgb(0, 0, 0);
+    border-width: 2px;
+    border-style: solid;
+    border-color: rgb(0, 0, 0);
+    margin-bottom: 3px;
+    min-width: 320px;
+    max-width: 1500px;
+
+}
+
+
+div.flamengo > img {
+    display: block;
+    margin: auto;
+}
+div.flamengo > a {
+display: block;
+margin: auto;
+width: 100px;
+font-size: 20px;
+font-weight: bold;
+text-align: center;
+color: rgb(255, 255, 255);
+text-decoration: none;
+border-width: 2px;
+    border-style: solid;
+    border-color: rgb(255, 255, 255);
+    padding:10px;
+    background-color: rgb(0, 0, 0);
+    border-radius: 5px;
+}
+div.flamengo> p {
+    margin-top: -15px;
+}
+div.flamengo> .nomeca {
+    margin: 10px;
+}
+
+
+
+
+div.br{
+    
+    background-color: rgb(255, 255, 255);
+    margin-top: -495px;
+    margin-left: 100px;
+    width: 320px;
+    padding-bottom: 50px;
+    border-radius: 20px;
+    text-align: center;
+    color: rgb(0, 0, 0);
+    border-width: 2px;
+    border-style: solid;
+    border-color: rgb(0, 0, 0);
+    min-width: 320px;
+    max-width: 1500px;
+
+}
+div.br > img {
+    display: block;
+    margin: auto;
+}
+div.br > a {
+display: block;
+margin: auto;
+width: 100px;
+font-size: 20px;
+font-weight: bold;
+text-align: center;
+color: rgb(255, 255, 255);
+text-decoration: none;
+border-width: 2px;
+    border-style: solid;
+    border-color: rgb(255, 255, 255);
+    padding:10px;
+    background-color: rgb(0, 0, 0);
+    border-radius: 5px;
+}
+div.br> p {
+    margin-top: -15px;
+}
+div.br> .nomeca {
+    margin: 10px;
+}
+
+div.barca{
+    
+    background-color: rgb(255, 255, 255);
+    margin-left: 1070px;
+    margin-top: -485px;
+    width: 320px;
+    padding-bottom: 50px;
+    border-radius: 20px;
+    text-align: center;
+    color: rgb(0, 0, 0);
+    border-width: 2px;
+    border-style: solid;
+    border-color: rgb(0, 0, 0);
+    border-top: -2px;
+    min-width: 320px;
+    max-width: 1500px;
+
+}
+div.barca > img {
+    display: block;
+    margin: auto;
+}
+div.barca > a {
+display: block;
+margin: auto;
+width: 100px;
+font-size: 20px;
+font-weight: bold;
+text-align: center;
+color: rgb(255, 255, 255);
+text-decoration: none;
+border-width: 2px;
+    border-style: solid;
+    border-color: rgb(255, 255, 255);
+    padding:10px;
+    background-color: rgb(0, 0, 0);
+    border-radius: 5px;
+}
+div.barca> p {
+    margin-top: -15px;
+}
+div.barca> .nomeca {
+    margin: 10px;
+}
+
+div.corinthians {
+    margin: auto;
+    background-color: rgb(255, 255, 255);
+    margin-top: 25px;
+    width: 320px;
+    padding-bottom: 50px;
+    border-radius: 20px;
+    text-align: center;
+    color: rgb(0, 0, 0);
+    border-width: 2px;
+    border-style: solid;
+    border-color: rgb(0, 0, 0);
+    min-width: 320px;
+    max-width: 1500px;
+
+}
+div.corinthians > img {
+    display: block;
+    margin: auto;
+}
+div.corinthians > a {
+display: block;
+margin: auto;
+width: 100px;
+font-size: 20px;
+font-weight: bold;
+text-align: center;
+color: rgb(255, 255, 255);
+text-decoration: none;
+border-width: 2px;
+    border-style: solid;
+    border-color: rgb(255, 255, 255);
+    padding:10px;
+    background-color: rgb(0, 0, 0);
+    border-radius: 5px;
+}
+div.corinthians> p {
+    margin-top: -15px;
+}
+div.corinthians> .nomeca {
+    margin: 10px;
+}
+
+div.franca{
+    
+    background-color: rgb(255, 255, 255);
+    margin-top: -488px;
+    margin-left: 100px;
+    width: 320px;
+    padding-bottom: 50px;
+    border-radius: 20px;
+    text-align: center;
+    color: rgb(0, 0, 0);
+    border-width: 2px;
+    border-style: solid;
+    border-color: rgb(0, 0, 0);
+    min-width: 320px;
+    max-width: 1500px;
+
+}
+div.franca> img {
+    display: block;
+    margin: auto;
+}
+div.franca> a {
+display: block;
+margin: auto;
+width: 100px;
+font-size: 20px;
+font-weight: bold;
+text-align: center;
+color: rgb(255, 255, 255);
+text-decoration: none;
+border-width: 2px;
+    border-style: solid;
+    border-color: rgb(255, 255, 255);
+    padding:10px;
+    background-color: rgb(0, 0, 0);
+    border-radius: 5px;
+}
+div.franca> p {
+    margin-top: -15px;
+}
+div.franca> .nomeca {
+    margin: 10px;
+}
+
+div.united{
+    
+    background-color: rgb(255, 255, 255);
+    margin-left: 1070px;
+    margin-top: -485px;
+    width: 320px;
+    padding-bottom: 50px;
+    border-radius: 20px;
+    text-align: center;
+    color: rgb(0, 0, 0);
+    border-width: 2px;
+    border-style: solid;
+    border-color: rgb(0, 0, 0);
+    min-width: 320px;
+    max-width: 1500px;
+
+}
+div.united > img {
+    display: block;
+    margin: auto;
+}
+div.united > a {
+display: block;
+margin: auto;
+width: 100px;
+font-size: 20px;
+font-weight: bold;
+text-align: center;
+color: rgb(255, 255, 255);
+text-decoration: none;
+border-width: 2px;
+    border-style: solid;
+    border-color: rgb(255, 255, 255);
+    padding:10px;
+    background-color: rgb(0, 0, 0);
+    border-radius: 5px;
+}
+div.united> p {
+    margin-top: -15px;
+}
+div.united> .nomeca {
+    margin: 10px;
+}
