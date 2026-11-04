@@ -136,7 +136,8 @@ main {
 .composer input,
 .composer textarea,
 .editor-inner input,
-.editor-inner textarea {
+.editor-inner textarea,
+.rich {
   border: none;
   background: transparent;
   outline: none;
@@ -148,7 +149,7 @@ main {
   font-size: var(--title-size);
   font-weight: var(--title-weight);
 }
-.composer textarea, .editor-inner textarea {
+.composer textarea, .editor-inner textarea, .rich {
   font-family: var(--note-font);
   font-size: var(--font-size);
   line-height: var(--line-height);
@@ -245,7 +246,7 @@ main {
   font-weight: var(--title-weight);
   padding-right: 26px;
 }
-.note p {
+.note .note-body {
   margin: 0;
   font-family: var(--note-font);
   font-size: var(--font-size);
@@ -283,7 +284,35 @@ mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: in
 .modal.small { width: min(420px, calc(100vw - 32px)); }
 .modal::backdrop { background: rgba(0, 0, 0, .5); }
 .editor-inner { display: flex; flex-direction: column; gap: 10px; padding: 18px; }
-.editor-inner textarea { min-height: 40vh; }
+.editor-inner textarea, .editor-inner .rich { min-height: 40vh; }
+
+/* ---------- Texto formatado ---------- */
+.rich { white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; -webkit-user-modify: read-write; cursor: text; }
+.composer .rich { min-height: 1.6em; max-height: 400px; }
+.editor-inner .rich { max-height: 55vh; }
+.rich:empty::before { content: attr(data-placeholder); opacity: .5; pointer-events: none; }
+.rich ul, .rich ol, .note-body ul, .note-body ol { margin: 0; padding-left: 1.4em; }
+
+.rt-toolbar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.rt-btn {
+  min-width: 34px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(127, 127, 127, .3);
+  background: rgba(127, 127, 127, .1);
+  color: inherit;
+  cursor: pointer;
+  font-size: .95rem;
+  line-height: 1;
+}
+.rt-btn:active, .rt-btn.open { background: rgba(127, 127, 127, .3); }
+.rt-btn .bar { display: block; height: 3px; border-radius: 2px; margin-top: 2px; background: linear-gradient(90deg, #d32f2f, #f9a825, #2e7d32, #1565c0, #6a1b9a); }
+.rt-sep { width: 1px; height: 22px; background: rgba(127, 127, 127, .35); margin: 0 2px; }
+.rt-palette { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 0; font-size: .8rem; }
+.rt-palette[hidden] { display: none; }
+.rt-palette .swatch { width: 28px; height: 28px; }
+.rt-hint { flex-basis: 100%; font-size: .75rem; opacity: .6; }
 .editor-opts { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; font-size: .9rem; }
 .editor-opts label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .editor-opts select { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border-color); background: transparent; }
