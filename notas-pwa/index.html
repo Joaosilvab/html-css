@@ -40,7 +40,8 @@
   <main>
     <section class="composer card" id="composer">
       <input type="text" id="newTitle" placeholder="Título" maxlength="120">
-      <textarea id="newBody" placeholder="Escreva uma nota…" rows="1"></textarea>
+      <div id="newBody" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto da nota" data-placeholder="Escreva uma nota…"></div>
+      <div class="rt-toolbar" data-target="newBody"></div>
       <div class="composer-footer">
         <button type="button" class="btn small" id="btnColors" aria-expanded="false">🎨 Cores</button>
         <div class="swatch-groups" id="colorGroups" hidden>
@@ -66,7 +67,8 @@
   <dialog id="editor" class="modal">
     <form method="dialog" class="editor-inner" id="editorForm">
       <input type="text" id="editTitle" placeholder="Título" maxlength="120">
-      <textarea id="editBody" placeholder="Nota"></textarea>
+      <div class="rt-toolbar" data-target="editBody"></div>
+      <div id="editBody" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto da nota" data-placeholder="Nota"></div>
       <div class="editor-opts">
         <label>Cor da nota <span class="swatches" id="editSwatches"></span></label>
         <label>Cor do título <span class="swatches" id="editTitleSwatches"></span></label>

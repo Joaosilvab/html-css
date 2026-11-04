@@ -328,7 +328,7 @@
         if (!n || typeof n !== 'object') continue;
         const note = {
           id: n.id && !ids.has(n.id) ? String(n.id) : uid(),
-          title: String(n.title || ''), body: String(n.body || ''),
+          title: String(n.title || ''), body: String(n.body || ''), html: typeof n.html === 'string' ? sanitizeHtml(n.html) : '',
           color: typeof n.color === 'string' ? n.color : '', textColor: typeof n.textColor === 'string' ? n.textColor : '', titleColor: typeof n.titleColor === 'string' ? n.titleColor : '', font: typeof n.font === 'string' ? n.font : '',
           pinned: !!n.pinned, created: +n.created || Date.now(), updated: +n.updated || Date.now()
         };
@@ -350,6 +350,214 @@
     const url = appUrl() + '?tema=' + encodeURIComponent(code);
     copy(url, 'Link com seu tema copiado! Quem abrir verá o mesmo visual.');
   });
+
+  // ---------- Texto formatado (cor por palavra/linha) ----------
+  const RICH_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'BR', 'DIV', 'P', 'SPAN', 'FONT', 'UL', 'OL', 'LI']);
+  const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|[a-z]{3,20})$/i;
+  const STYLE_PROPS = ['color', 'background-color', 'font-weight', 'font-style', 'text-decoration-line', 'text-decoration'];
+
+  function sanitizeHtml(html) {
+    const src = new DOMParser().parseFromString(`<body>${html || ''}</body>`, 'text/html').body;
+    const out = document.createElement('div');
+    const walk = (from, to) => {
+      for (const node of from.childNodes) {
+        if (node.nodeType === 3) { to.appendChild(document.createTextNode(node.nodeValue)); continue; }
+        if (node.nodeType !== 1) continue;
+        const tag = node.tagName;
+        if (/^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|IFRAME|OBJECT)$/.test(tag)) continue;
+        if (!RICH_TAGS.has(tag)) { walk(node, to); continue; }
+        const el = document.createElement(tag === 'FONT' ? 'span' : tag.toLowerCase());
+        const styles = [];
+        for (const prop of STYLE_PROPS) {
+          const v = node.style && node.style.getPropertyValue(prop);
+          if (!v) continue;
+          if (prop.includes('color')) { if (SAFE_COLOR.test(v.trim())) styles.push(`${prop}: ${v}`); }
+          else if (/^[a-z0-9\s-]+$/i.test(v)) styles.push(`${prop}: ${v}`);
+        }
+        if (tag === 'FONT' && node.getAttribute('color') && SAFE_COLOR.test(node.getAttribute('color'))) styles.push(`color: ${node.getAttribute('color')}`);
+        if (styles.length) el.setAttribute('style', styles.join('; '));
+        walk(node, el);
+        to.appendChild(el);
+      }
+    };
+    walk(src, out);
+    return out.innerHTML;
+  }
+
+  function htmlToText(html) {
+    const root = new DOMParser().parseFromString(`<body>${html || ''}</body>`, 'text/html').body;
+    let text = '';
+    const walk = node => {
+      for (const c of node.childNodes) {
+        if (c.nodeType === 3) text += c.nodeValue;
+        else if (c.nodeType === 1) {
+          if (c.tagName === 'BR') { text += '\n'; continue; }
+          const block = /^(DIV|P|LI|UL|OL)$/.test(c.tagName);
+          if (block && text && !text.endsWith('\n')) text += '\n';
+          walk(c);
+        }
+      }
+    };
+    walk(root);
+    return text.replace(/ /g, ' ');
+  }
+
+  function textToHtml(text) { return escapeHtml(text || '').replace(/\n/g, '<br>'); }
+  function noteHtml(n) { return n.html ? sanitizeHtml(n.html) : textToHtml(n.body); }
+
+  // destaca a busca só nos textos (sem quebrar as tags)
+  function markMatches(el, q) {
+    if (!q) return;
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const hits = [];
+    while (walker.nextNode()) if (walker.currentNode.nodeValue.toLowerCase().includes(q)) hits.push(walker.currentNode);
+    for (const t of hits) {
+      const frag = document.createDocumentFragment();
+      const s = t.nodeValue;
+      let i = 0, j;
+      while ((j = s.toLowerCase().indexOf(q, i)) >= 0) {
+        frag.append(s.slice(i, j));
+        const m = document.createElement('mark');
+        m.textContent = s.slice(j, j + q.length);
+        frag.append(m);
+        i = j + q.length;
+      }
+      frag.append(s.slice(i));
+      t.replaceWith(frag);
+    }
+  }
+
+  // guarda a última seleção dentro de um campo formatado
+  let savedRange = null;
+  let savedEditable = null;
+  document.addEventListener('selectionchange', () => {
+    const sel = document.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const r = sel.getRangeAt(0);
+    const host = r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement;
+    const ed = host && host.closest && host.closest('.rich');
+    if (ed) { savedRange = r.cloneRange(); savedEditable = ed; }
+  });
+
+  function restoreSelection(target) {
+    if (savedEditable !== target || !savedRange) {
+      // sem seleção: coloca o cursor no fim
+      target.focus();
+      const r = document.createRange();
+      r.selectNodeContents(target);
+      r.collapse(false);
+      savedRange = r; savedEditable = target;
+    } else {
+      target.focus({ preventScroll: true });
+    }
+    const sel = document.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+  }
+
+  function format(target, cmd, value) {
+    restoreSelection(target);
+    try { document.execCommand('styleWithCSS', false, true); } catch { /* ignora */ }
+    document.execCommand(cmd, false, value);
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  const HILITE_COLORS = ['#fff176', '#a5d6a7', '#90caf9', '#f48fb1', '#ffcc80', '#ce93d8'];
+
+  function buildToolbar(bar) {
+    const target = document.getElementById(bar.dataset.target);
+    bar.innerHTML = '';
+    const btn = (label, title, onClick, html) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'rt-btn';
+      b.title = title;
+      b.setAttribute('aria-label', title);
+      if (html) b.innerHTML = label; else b.textContent = label;
+      b.addEventListener('mousedown', e => e.preventDefault()); // não perde a seleção
+      b.addEventListener('click', onClick);
+      bar.appendChild(b);
+      return b;
+    };
+    const sep = () => { const s = document.createElement('span'); s.className = 'rt-sep'; bar.appendChild(s); };
+
+    btn('<b>B</b>', 'Negrito', () => format(target, 'bold'), true);
+    btn('<i>I</i>', 'Itálico', () => format(target, 'italic'), true);
+    btn('<u>U</u>', 'Sublinhado', () => format(target, 'underline'), true);
+    sep();
+    const colorBtn = btn('A<span class="bar"></span>', 'Cor da letra do trecho selecionado', () => toggle(colorPal, colorBtn), true);
+    const hiBtn = btn('🖍', 'Marca-texto', () => toggle(hiPal, hiBtn));
+    btn('⌫', 'Limpar formatação do trecho', () => format(target, 'removeFormat'));
+
+    const palette = (label, colors, apply, extra) => {
+      const p = document.createElement('div');
+      p.className = 'rt-palette';
+      p.hidden = true;
+      const span = document.createElement('span');
+      span.textContent = label;
+      p.appendChild(span);
+      for (const c of colors) {
+        const s = document.createElement('button');
+        s.type = 'button';
+        s.className = 'swatch';
+        s.style.background = c;
+        s.title = c;
+        s.addEventListener('mousedown', e => e.preventDefault());
+        s.addEventListener('click', () => apply(c));
+        p.appendChild(s);
+      }
+      if (extra) extra(p);
+      const custom = document.createElement('label');
+      custom.className = 'swatch swatch-custom';
+      custom.title = 'Outra cor';
+      const input = document.createElement('input');
+      input.type = 'color';
+      input.addEventListener('change', () => apply(input.value));
+      custom.appendChild(input);
+      p.appendChild(custom);
+      bar.appendChild(p);
+      return p;
+    };
+    const colorPal = palette('Cor:', TEXT_COLORS.filter(Boolean), c => format(target, 'foreColor', c));
+    const hiPal = palette('Marca-texto:', HILITE_COLORS, c => format(target, 'hiliteColor', c), p => {
+      const none = document.createElement('button');
+      none.type = 'button';
+      none.className = 'swatch none';
+      none.title = 'Sem marca-texto';
+      none.addEventListener('mousedown', e => e.preventDefault());
+      none.addEventListener('click', () => format(target, 'hiliteColor', 'transparent'));
+      p.appendChild(none);
+    });
+    const hint = document.createElement('span');
+    hint.className = 'rt-hint';
+    hint.textContent = 'Selecione uma palavra ou linha e escolha a cor.';
+    hint.hidden = true;
+    bar.appendChild(hint);
+
+    function toggle(pal, b) {
+      const open = pal.hidden;
+      [colorPal, hiPal].forEach(x => { x.hidden = true; });
+      [colorBtn, hiBtn].forEach(x => x.classList.remove('open'));
+      pal.hidden = !open;
+      hint.hidden = !open;
+      b.classList.toggle('open', open);
+    }
+  }
+
+  function setupRich(el) {
+    // colar sempre como texto simples (evita lixo de outros apps)
+    el.addEventListener('paste', e => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      document.execCommand('insertText', false, text);
+    });
+    // mantém o placeholder funcionando quando o campo fica vazio
+    el.addEventListener('input', () => {
+      if (!el.textContent.trim() && !el.querySelector('li')) el.innerHTML = '';
+    });
+  }
+
+  $$('.rt-toolbar').forEach(buildToolbar);
 
   // ---------- Notas ----------
   function buildSwatches(container, current, onPick, palette = NOTE_COLORS, isText = false) {
@@ -403,19 +611,18 @@
   });
 
   const newBody = $('#newBody');
-  const autoGrow = el => { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 400) + 'px'; };
-  newBody.addEventListener('input', () => autoGrow(newBody));
+  setupRich(newBody);
 
   function addNote() {
     const title = $('#newTitle').value.trim();
-    const body = newBody.value.trim();
+    const html = sanitizeHtml(newBody.innerHTML);
+    const body = htmlToText(html).trim();
     if (!title && !body) { $('#newTitle').focus(); return; }
     const now = Date.now();
-    notes.unshift({ id: uid(), title, body, color: newColor, textColor: newTextColor, titleColor: newTitleColor, font: '', pinned: false, created: now, updated: now });
+    notes.unshift({ id: uid(), title, body, html: body ? html : '', color: newColor, textColor: newTextColor, titleColor: newTitleColor, font: '', pinned: false, created: now, updated: now });
     saveNotes();
     $('#newTitle').value = '';
-    newBody.value = '';
-    autoGrow(newBody);
+    newBody.innerHTML = '';
     render();
   }
   $('#btnAdd').addEventListener('click', addNote);
@@ -461,8 +668,10 @@
       card.innerHTML = `
         <button class="pin ${n.pinned ? 'on' : ''}" title="${n.pinned ? 'Desafixar' : 'Fixar'}" aria-label="Fixar">📌</button>
         ${n.title ? `<h3${n.titleColor ? ` style="color:${escapeHtml(n.titleColor)}"` : ''}>${highlight(n.title)}</h3>` : ''}
-        ${n.body ? `<p>${highlight(n.body)}</p>` : ''}
+        ${n.body.trim() ? `<div class="note-body">${noteHtml(n)}</div>` : ''}
         <span class="date">${dateFmt.format(n.updated)}</span>`;
+      const bodyEl = card.querySelector('.note-body');
+      if (bodyEl) markMatches(bodyEl, query);
       card.querySelector('.pin').addEventListener('click', e => {
         e.stopPropagation();
         n.pinned = !n.pinned;
@@ -502,7 +711,7 @@
     const n = current();
     if (!n) return;
     editTitle.value = n.title;
-    editBody.value = n.body;
+    editBody.innerHTML = noteHtml(n);
     editFont.value = n.font || '';
     buildSwatches($('#editSwatches'), n.color, c => { n.color = c; touch(n); paintEditor(n); });
     buildSwatches($('#editTitleSwatches'), n.titleColor || '', c => { n.titleColor = c; touch(n); paintEditor(n); }, TEXT_COLORS, true);
@@ -514,7 +723,13 @@
   function touch(n) { n.updated = Date.now(); saveNotes(); render(); }
 
   editTitle.addEventListener('input', () => { const n = current(); if (n) { n.title = editTitle.value; touch(n); } });
-  editBody.addEventListener('input', () => { const n = current(); if (n) { n.body = editBody.value; touch(n); } });
+  setupRich(editBody);
+  editBody.addEventListener('input', () => {
+    const n = current(); if (!n) return;
+    n.html = sanitizeHtml(editBody.innerHTML);
+    n.body = htmlToText(n.html);
+    touch(n);
+  });
   editFont.addEventListener('change', () => { const n = current(); if (n) { n.font = editFont.value; touch(n); paintEditor(n); } });
   $('#btnPin').addEventListener('click', () => { const n = current(); if (n) { n.pinned = !n.pinned; touch(n); paintEditor(n); } });
   $('#btnDuplicate').addEventListener('click', () => {
