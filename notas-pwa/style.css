@@ -184,7 +184,8 @@ main {
   text-shadow: 0 0 1px rgba(127, 127, 127, .8);
 }
 .text-swatch.auto { font-size: 8px; font-family: var(--ui-font); font-weight: 700; text-shadow: none; }
-.swatch-groups { display: flex; flex-direction: column; gap: 6px; }
+.btn.small { padding: 6px 12px; font-size: .85rem; }
+.swatch-groups { flex-basis: 100%; order: 3; display: flex; flex-direction: column; gap: 6px; }
 .swatch-row { display: flex; align-items: center; gap: 8px; font-size: .8rem; }
 .swatch-row > span { width: 38px; opacity: .7; flex: none; }
 .composer { transition: background .2s; }

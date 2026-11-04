@@ -99,6 +99,7 @@
   let query = '';
   let newColor = '';
   let newTextColor = '';
+  let newTitleColor = '';
   let editingId = null;
 
   // Tema recebido por link (?tema=...)
@@ -328,7 +329,7 @@
         const note = {
           id: n.id && !ids.has(n.id) ? String(n.id) : uid(),
           title: String(n.title || ''), body: String(n.body || ''),
-          color: typeof n.color === 'string' ? n.color : '', textColor: typeof n.textColor === 'string' ? n.textColor : '', font: typeof n.font === 'string' ? n.font : '',
+          color: typeof n.color === 'string' ? n.color : '', textColor: typeof n.textColor === 'string' ? n.textColor : '', titleColor: typeof n.titleColor === 'string' ? n.titleColor : '', font: typeof n.font === 'string' ? n.font : '',
           pinned: !!n.pinned, created: +n.created || Date.now(), updated: +n.updated || Date.now()
         };
         notes.push(note); ids.add(note.id); added++;
@@ -380,17 +381,26 @@
   }
 
   function noteTextColor(n) { return n.textColor || (n.color ? readableOn(n.color) : ''); }
+  // título "auto" = mesma cor do texto
+  function noteTitleColor(n) { return n.titleColor || noteTextColor(n); }
 
   function paintComposer() {
     const el = $('#composer');
     el.style.background = newColor ? newColor : '';
-    const tc = noteTextColor({ color: newColor, textColor: newTextColor });
-    $('#newTitle').style.color = tc;
-    $('#newBody').style.color = tc;
+    const draft = { color: newColor, textColor: newTextColor, titleColor: newTitleColor };
+    $('#newTitle').style.color = noteTitleColor(draft);
+    $('#newBody').style.color = noteTextColor(draft);
   }
 
   buildSwatches($('#newSwatches'), newColor, c => { newColor = c; paintComposer(); });
+  buildSwatches($('#newTitleSwatches'), newTitleColor, c => { newTitleColor = c; paintComposer(); }, TEXT_COLORS, true);
   buildSwatches($('#newTextSwatches'), newTextColor, c => { newTextColor = c; paintComposer(); }, TEXT_COLORS, true);
+
+  $('#btnColors').addEventListener('click', () => {
+    const g = $('#colorGroups');
+    g.hidden = !g.hidden;
+    $('#btnColors').setAttribute('aria-expanded', String(!g.hidden));
+  });
 
   const newBody = $('#newBody');
   const autoGrow = el => { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 400) + 'px'; };
@@ -401,7 +411,7 @@
     const body = newBody.value.trim();
     if (!title && !body) { $('#newTitle').focus(); return; }
     const now = Date.now();
-    notes.unshift({ id: uid(), title, body, color: newColor, textColor: newTextColor, font: '', pinned: false, created: now, updated: now });
+    notes.unshift({ id: uid(), title, body, color: newColor, textColor: newTextColor, titleColor: newTitleColor, font: '', pinned: false, created: now, updated: now });
     saveNotes();
     $('#newTitle').value = '';
     newBody.value = '';
@@ -450,7 +460,7 @@
       if (n.font) card.style.setProperty('--note-font', n.font);
       card.innerHTML = `
         <button class="pin ${n.pinned ? 'on' : ''}" title="${n.pinned ? 'Desafixar' : 'Fixar'}" aria-label="Fixar">📌</button>
-        ${n.title ? `<h3>${highlight(n.title)}</h3>` : ''}
+        ${n.title ? `<h3${n.titleColor ? ` style="color:${escapeHtml(n.titleColor)}"` : ''}>${highlight(n.title)}</h3>` : ''}
         ${n.body ? `<p>${highlight(n.body)}</p>` : ''}
         <span class="date">${dateFmt.format(n.updated)}</span>`;
       card.querySelector('.pin').addEventListener('click', e => {
@@ -479,6 +489,9 @@
     const inner = $('.editor-inner', editor);
     inner.style.background = n.color ? n.color : '';
     inner.style.color = noteTextColor(n);
+    editTitle.style.color = noteTitleColor(n);
+    const uiColor = n.color ? readableOn(n.color) : '';
+    $$('.editor-opts, .editor-actions, #editMeta', editor).forEach(el => { el.style.color = uiColor; });
     editBody.style.fontFamily = n.font || '';
     $('#btnPin').textContent = n.pinned ? '📌 Desafixar' : '📌 Fixar';
     $('#editMeta').textContent = `Criada em ${dateFmt.format(n.created)} · Editada em ${dateFmt.format(n.updated)}`;
@@ -492,6 +505,7 @@
     editBody.value = n.body;
     editFont.value = n.font || '';
     buildSwatches($('#editSwatches'), n.color, c => { n.color = c; touch(n); paintEditor(n); });
+    buildSwatches($('#editTitleSwatches'), n.titleColor || '', c => { n.titleColor = c; touch(n); paintEditor(n); }, TEXT_COLORS, true);
     buildSwatches($('#editTextSwatches'), n.textColor || '', c => { n.textColor = c; touch(n); paintEditor(n); }, TEXT_COLORS, true);
     paintEditor(n);
     editor.showModal();
@@ -615,7 +629,7 @@
   document.addEventListener('touchend', e => {
     if (touchMoved) return;
     const el = e.target.closest && e.target.closest('input:not([type=checkbox]):not([type=range]):not([type=color]):not([type=file]), textarea');
-    if (el && document.activeElement !== el && !el.disabled) el.focus({ preventScroll: true });
+    if (el && document.activeElement !== el && !el.disabled) el.focus();
   }, { passive: true });
 
   if ('serviceWorker' in navigator) {

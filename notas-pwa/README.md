@@ -13,7 +13,7 @@ Dá para mudar praticamente tudo no visual.
 - **Cores**: texto, destaque/botões, cartões, barra superior e transparência dos cartões
 - **Formato**: arredondamento, sombra, borda, largura dos cartões, layout em grade ou lista
 - **Nome do app**
-- Cada nota pode ter **cor de fundo**, **cor da letra** e **fonte** próprias (também dá para escolher ao escrever uma nota nova)
+- Cada nota pode ter **cor de fundo**, **cor do título**, **cor do texto** e **fonte** próprias (também dá para escolher ao escrever uma nota nova)
 
 ## Recursos
 
