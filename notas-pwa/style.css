@@ -284,22 +284,12 @@ mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: in
 .modal.small { width: min(420px, calc(100vw - 32px)); }
 .modal::backdrop { background: rgba(0, 0, 0, .5); }
 .editor-inner { display: flex; flex-direction: column; gap: 10px; padding: 18px; }
-.editor-inner textarea, #editBody { min-height: 40vh; }
+.editor-inner textarea, .editor-inner .rich { min-height: 40vh; }
 
 /* ---------- Texto formatado ---------- */
 .rich { white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; -webkit-user-modify: read-write; cursor: text; }
 .composer .rich { min-height: 1.6em; max-height: 400px; }
-#editBody { max-height: 55vh; }
-.rich.title-field {
-  font-family: var(--title-font);
-  font-size: var(--title-size);
-  font-weight: var(--title-weight);
-  line-height: 1.3;
-  white-space: normal;
-  min-height: 1.3em;
-  max-height: none;
-  overflow: visible;
-}
+.editor-inner .rich { max-height: 55vh; }
 .rich:empty::before { content: attr(data-placeholder); opacity: .5; pointer-events: none; }
 .rich ul, .rich ol, .note-body ul, .note-body ol { margin: 0; padding-left: 1.4em; }
 
