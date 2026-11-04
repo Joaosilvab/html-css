@@ -169,6 +169,22 @@ main {
 }
 .swatch.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
 .swatch.none { background: linear-gradient(135deg, transparent 45%, #e33 45%, #e33 55%, transparent 55%), var(--card-solid); }
+.text-swatch {
+  background: var(--card-solid);
+  color: var(--text);
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1;
+  font-family: Georgia, serif;
+  display: inline-grid;
+  place-items: center;
+  text-shadow: 0 0 1px rgba(127, 127, 127, .8);
+}
+.text-swatch.auto { font-size: 8px; font-family: var(--ui-font); font-weight: 700; text-shadow: none; }
+.swatch-groups { display: flex; flex-direction: column; gap: 6px; }
+.swatch-row { display: flex; align-items: center; gap: 8px; font-size: .8rem; }
+.swatch-row > span { width: 38px; opacity: .7; flex: none; }
+.composer { transition: background .2s; }
 .swatch-custom { position: relative; overflow: hidden; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
 .swatch-custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 

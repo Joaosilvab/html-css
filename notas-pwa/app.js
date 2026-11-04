@@ -28,6 +28,8 @@
 
   const NOTE_COLORS = ['', '#fff59d', '#ffcc80', '#ef9a9a', '#f48fb1', '#ce93d8', '#90caf9', '#80deea', '#a5d6a7', '#e6ee9c', '#bcaaa4', '#b0bec5'];
 
+  const TEXT_COLORS = ['', '#111111', '#ffffff', '#d32f2f', '#ef6c00', '#f9a825', '#2e7d32', '#00838f', '#1565c0', '#6a1b9a', '#ad1457', '#5d4037'];
+
   const DEFAULT_THEME = {
     appTitle: 'Minhas Notas',
     layout: 'grid',
@@ -96,6 +98,7 @@
   let filter = 'all';
   let query = '';
   let newColor = '';
+  let newTextColor = '';
   let editingId = null;
 
   // Tema recebido por link (?tema=...)
@@ -324,7 +327,7 @@
         const note = {
           id: n.id && !ids.has(n.id) ? String(n.id) : uid(),
           title: String(n.title || ''), body: String(n.body || ''),
-          color: typeof n.color === 'string' ? n.color : '', font: typeof n.font === 'string' ? n.font : '',
+          color: typeof n.color === 'string' ? n.color : '', textColor: typeof n.textColor === 'string' ? n.textColor : '', font: typeof n.font === 'string' ? n.font : '',
           pinned: !!n.pinned, created: +n.created || Date.now(), updated: +n.updated || Date.now()
         };
         notes.push(note); ids.add(note.id); added++;
@@ -347,28 +350,46 @@
   });
 
   // ---------- Notas ----------
-  function buildSwatches(container, current, onPick) {
+  function buildSwatches(container, current, onPick, palette = NOTE_COLORS, isText = false) {
+    const rebuild = c => buildSwatches(container, c, onPick, palette, isText);
     container.innerHTML = '';
-    for (const c of NOTE_COLORS) {
+    for (const c of palette) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'swatch' + (c ? '' : ' none') + (c === current ? ' selected' : '');
-      if (c) b.style.background = c;
-      b.title = c || 'Sem cor';
-      b.addEventListener('click', () => { onPick(c); buildSwatches(container, c, onPick); });
+      b.className = 'swatch' + (isText ? ' text-swatch' : '') + (c ? '' : (isText ? ' auto' : ' none')) + (c === current ? ' selected' : '');
+      if (isText) {
+        b.textContent = c ? 'A' : 'auto';
+        if (c) { b.style.color = c; if (luminance(c) > 0.6) b.style.background = '#333'; }
+      }
+      else if (c) b.style.background = c;
+      b.title = c || (isText ? 'Automática' : 'Sem cor');
+      b.setAttribute('aria-label', b.title);
+      b.addEventListener('click', () => { onPick(c); rebuild(c); });
       container.appendChild(b);
     }
     const custom = document.createElement('label');
-    custom.className = 'swatch swatch-custom' + (current && !NOTE_COLORS.includes(current) ? ' selected' : '');
+    custom.className = 'swatch swatch-custom' + (current && !palette.includes(current) ? ' selected' : '');
     custom.title = 'Cor personalizada';
     const input = document.createElement('input');
     input.type = 'color';
-    input.value = current && current.startsWith('#') ? current : '#ffffff';
-    input.addEventListener('change', () => { onPick(input.value); buildSwatches(container, input.value, onPick); });
+    input.value = current && current.startsWith('#') ? current : (isText ? '#000000' : '#ffffff');
+    input.addEventListener('change', () => { onPick(input.value); rebuild(input.value); });
     custom.appendChild(input);
     container.appendChild(custom);
   }
-  buildSwatches($('#newSwatches'), newColor, c => { newColor = c; });
+
+  function noteTextColor(n) { return n.textColor || (n.color ? readableOn(n.color) : ''); }
+
+  function paintComposer() {
+    const el = $('#composer');
+    el.style.background = newColor ? newColor : '';
+    const tc = noteTextColor({ color: newColor, textColor: newTextColor });
+    $('#newTitle').style.color = tc;
+    $('#newBody').style.color = tc;
+  }
+
+  buildSwatches($('#newSwatches'), newColor, c => { newColor = c; paintComposer(); });
+  buildSwatches($('#newTextSwatches'), newTextColor, c => { newTextColor = c; paintComposer(); }, TEXT_COLORS, true);
 
   const newBody = $('#newBody');
   const autoGrow = el => { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 400) + 'px'; };
@@ -379,7 +400,7 @@
     const body = newBody.value.trim();
     if (!title && !body) { $('#newTitle').focus(); return; }
     const now = Date.now();
-    notes.unshift({ id: uid(), title, body, color: newColor, font: '', pinned: false, created: now, updated: now });
+    notes.unshift({ id: uid(), title, body, color: newColor, textColor: newTextColor, font: '', pinned: false, created: now, updated: now });
     saveNotes();
     $('#newTitle').value = '';
     newBody.value = '';
@@ -423,8 +444,8 @@
       card.tabIndex = 0;
       if (n.color) {
         card.style.background = rgba(n.color, Math.max(theme.cardOpacity, 0.85));
-        card.style.color = readableOn(n.color);
       }
+      if (noteTextColor(n)) card.style.color = noteTextColor(n);
       if (n.font) card.style.setProperty('--note-font', n.font);
       card.innerHTML = `
         <button class="pin ${n.pinned ? 'on' : ''}" title="${n.pinned ? 'Desafixar' : 'Fixar'}" aria-label="Fixar">📌</button>
@@ -456,7 +477,7 @@
   function paintEditor(n) {
     const inner = $('.editor-inner', editor);
     inner.style.background = n.color ? n.color : '';
-    inner.style.color = n.color ? readableOn(n.color) : '';
+    inner.style.color = noteTextColor(n);
     editBody.style.fontFamily = n.font || '';
     $('#btnPin').textContent = n.pinned ? '📌 Desafixar' : '📌 Fixar';
     $('#editMeta').textContent = `Criada em ${dateFmt.format(n.created)} · Editada em ${dateFmt.format(n.updated)}`;
@@ -470,6 +491,7 @@
     editBody.value = n.body;
     editFont.value = n.font || '';
     buildSwatches($('#editSwatches'), n.color, c => { n.color = c; touch(n); paintEditor(n); });
+    buildSwatches($('#editTextSwatches'), n.textColor || '', c => { n.textColor = c; touch(n); paintEditor(n); }, TEXT_COLORS, true);
     paintEditor(n);
     editor.showModal();
     editBody.focus();
