@@ -312,6 +312,18 @@ mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: in
 .rt-palette { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 0; font-size: .8rem; }
 .rt-palette[hidden] { display: none; }
 .rt-palette .swatch { width: 28px; height: 28px; }
+.rt-fonts { gap: 6px; }
+.font-chip {
+  border: 1px solid rgba(127, 127, 127, .35);
+  background: rgba(127, 127, 127, .08);
+  color: inherit;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 1rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.font-chip:active { background: rgba(127, 127, 127, .3); }
 .rt-hint { flex-basis: 100%; font-size: .75rem; opacity: .6; }
 .editor-opts { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; font-size: .9rem; }
 .editor-opts label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

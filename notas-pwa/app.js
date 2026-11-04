@@ -354,7 +354,7 @@
   // ---------- Texto formatado (cor por palavra/linha) ----------
   const RICH_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'BR', 'DIV', 'P', 'SPAN', 'FONT', 'UL', 'OL', 'LI']);
   const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|[a-z]{3,20})$/i;
-  const STYLE_PROPS = ['color', 'background-color', 'font-weight', 'font-style', 'text-decoration-line', 'text-decoration'];
+  const STYLE_PROPS = ['color', 'background-color', 'font-weight', 'font-style', 'text-decoration-line', 'text-decoration', 'font-family'];
 
   function sanitizeHtml(html) {
     const src = new DOMParser().parseFromString(`<body>${html || ''}</body>`, 'text/html').body;
@@ -372,9 +372,11 @@
           const v = node.style && node.style.getPropertyValue(prop);
           if (!v) continue;
           if (prop.includes('color')) { if (SAFE_COLOR.test(v.trim())) styles.push(`${prop}: ${v}`); }
+          else if (prop === 'font-family') { if (/^[a-z0-9\s,'"-]{1,80}$/i.test(v)) styles.push(`${prop}: ${v}`); }
           else if (/^[a-z0-9\s-]+$/i.test(v)) styles.push(`${prop}: ${v}`);
         }
         if (tag === 'FONT' && node.getAttribute('color') && SAFE_COLOR.test(node.getAttribute('color'))) styles.push(`color: ${node.getAttribute('color')}`);
+        if (tag === 'FONT' && node.getAttribute('face') && /^[a-z0-9\s,'"-]{1,80}$/i.test(node.getAttribute('face'))) styles.push(`font-family: ${node.getAttribute('face')}`);
         if (styles.length) el.setAttribute('style', styles.join('; '));
         walk(node, el);
         to.appendChild(el);
@@ -486,6 +488,7 @@
     btn('<u>U</u>', 'Sublinhado', () => format(target, 'underline'), true);
     sep();
     const colorBtn = btn('A<span class="bar"></span>', 'Cor da letra do trecho selecionado', () => toggle(colorPal, colorBtn), true);
+    const fontBtn = btn('<span style="font-family:Georgia,serif">Aa</span>', 'Fonte do trecho selecionado', () => toggle(fontPal, fontBtn), true);
     const hiBtn = btn('🖍', 'Marca-texto', () => toggle(hiPal, hiBtn));
     btn('⌫', 'Limpar formatação do trecho', () => format(target, 'removeFormat'));
 
@@ -530,14 +533,33 @@
     });
     const hint = document.createElement('span');
     hint.className = 'rt-hint';
-    hint.textContent = 'Selecione uma palavra ou linha e escolha a cor.';
+    hint.textContent = 'Selecione uma palavra ou linha e escolha.';
     hint.hidden = true;
     bar.appendChild(hint);
 
+    // fontes: cada botão mostra o nome escrito na própria fonte
+    const fontPal = document.createElement('div');
+    fontPal.className = 'rt-palette rt-fonts';
+    fontPal.hidden = true;
+    const fl = document.createElement('span');
+    fl.textContent = 'Fonte:';
+    fontPal.appendChild(fl);
+    for (const [value, label] of [['inherit', 'Padrão da nota'], ...FONTS]) {
+      const f = document.createElement('button');
+      f.type = 'button';
+      f.className = 'font-chip';
+      f.textContent = label.replace(/ \(.*\)$/, '');
+      if (value !== 'inherit') f.style.fontFamily = value;
+      f.addEventListener('mousedown', e => e.preventDefault());
+      f.addEventListener('click', () => format(target, 'fontName', value));
+      fontPal.appendChild(f);
+    }
+    bar.insertBefore(fontPal, hint);
+
     function toggle(pal, b) {
       const open = pal.hidden;
-      [colorPal, hiPal].forEach(x => { x.hidden = true; });
-      [colorBtn, hiBtn].forEach(x => x.classList.remove('open'));
+      [colorPal, hiPal, fontPal].forEach(x => { x.hidden = true; });
+      [colorBtn, hiBtn, fontBtn].forEach(x => x.classList.remove('open'));
       pal.hidden = !open;
       hint.hidden = !open;
       b.classList.toggle('open', open);
