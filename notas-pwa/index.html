@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Minhas Notas</title>
+  <meta name="description" content="Bloco de notas totalmente personalizável: fontes, cores, fundo e layout. Funciona offline e pode ser instalado.">
+  <meta name="theme-color" content="#7c5cff">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Notas">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto:wght@400;700&family=Poppins:wght@400;600&family=Nunito:wght@400;700&family=Lora:wght@400;700&family=Merriweather:wght@400;700&family=Playfair+Display:wght@400;700&family=Caveat:wght@400;700&family=Patrick+Hand&family=Indie+Flower&family=Pacifico&family=Fira+Code:wght@400;600&family=JetBrains+Mono:wght@400;700&family=Comfortaa:wght@400;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="bg-layer" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <img src="icons/icon.svg" alt="" width="32" height="32">
+      <h1 id="appTitle">Minhas Notas</h1>
+    </div>
+    <div class="search">
+      <input type="search" id="search" placeholder="Buscar notas…" aria-label="Buscar notas">
+    </div>
+    <div class="actions">
+      <button class="icon-btn" id="btnLayout" title="Alternar grade/lista" aria-label="Alternar grade/lista">▦</button>
+      <button class="icon-btn" id="btnShare" title="Compartilhar app" aria-label="Compartilhar app">⤴</button>
+      <button class="icon-btn" id="btnInstall" title="Instalar app" aria-label="Instalar app" hidden>⬇</button>
+      <button class="icon-btn" id="btnSettings" title="Personalizar" aria-label="Personalizar">🎨</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="composer card" id="composer">
+      <input type="text" id="newTitle" placeholder="Título" maxlength="120">
+      <textarea id="newBody" placeholder="Escreva uma nota…" rows="1"></textarea>
+      <div class="composer-footer">
+        <div class="swatches" id="newSwatches"></div>
+        <button class="btn primary" id="btnAdd">Adicionar</button>
+      </div>
+    </section>
+
+    <div class="filters">
+      <button class="chip active" data-filter="all">Todas</button>
+      <button class="chip" data-filter="pinned">📌 Fixadas</button>
+      <span class="count" id="count"></span>
+    </div>
+
+    <section id="notes" class="notes grid" aria-live="polite"></section>
+    <p class="empty" id="empty" hidden>Nenhuma nota ainda. Escreva a primeira aí em cima ✍️</p>
+  </main>
+
+  <!-- Editor de nota -->
+  <dialog id="editor" class="modal">
+    <form method="dialog" class="editor-inner" id="editorForm">
+      <input type="text" id="editTitle" placeholder="Título" maxlength="120">
+      <textarea id="editBody" placeholder="Nota"></textarea>
+      <div class="editor-opts">
+        <label>Cor <span class="swatches" id="editSwatches"></span></label>
+        <label>Fonte da nota
+          <select id="editFont"></select>
+        </label>
+      </div>
+      <p class="meta" id="editMeta"></p>
+      <div class="editor-actions">
+        <button type="button" class="btn danger" id="btnDelete">Excluir</button>
+        <button type="button" class="btn" id="btnPin">📌 Fixar</button>
+        <button type="button" class="btn" id="btnDuplicate">Duplicar</button>
+        <span class="spacer"></span>
+        <button type="submit" class="btn primary">Fechar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Painel de personalização -->
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <h2>Personalizar</h2>
+      <button class="icon-btn" id="btnCloseDrawer" aria-label="Fechar">✕</button>
+    </div>
+    <div class="drawer-body">
+      <fieldset>
+        <legend>Temas prontos</legend>
+        <div class="presets" id="presets"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Geral</legend>
+        <label>Nome do app <input type="text" data-key="appTitle" maxlength="40"></label>
+        <label>Layout
+          <select data-key="layout">
+            <option value="grid">Grade</option>
+            <option value="list">Lista</option>
+          </select>
+        </label>
+        <label>Largura mínima dos cartões <output data-for="cardWidth"></output>
+          <input type="range" data-key="cardWidth" min="160" max="420" step="10">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Fontes</legend>
+        <label>Fonte da interface <select data-key="uiFont" class="font-select"></select></label>
+        <label>Fonte dos títulos <select data-key="titleFont" class="font-select"></select></label>
+        <label>Fonte das notas <select data-key="noteFont" class="font-select"></select></label>
+        <label>Tamanho do texto <output data-for="fontSize"></output>
+          <input type="range" data-key="fontSize" min="12" max="26" step="1">
+        </label>
+        <label>Tamanho dos títulos <output data-for="titleSize"></output>
+          <input type="range" data-key="titleSize" min="14" max="36" step="1">
+        </label>
+        <label>Espaçamento entre linhas <output data-for="lineHeight"></output>
+          <input type="range" data-key="lineHeight" min="1" max="2.2" step="0.1">
+        </label>
+        <label class="row">Títulos em negrito <input type="checkbox" data-key="titleBold"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Fundo</legend>
+        <label>Tipo de fundo
+          <select data-key="bgType">
+            <option value="solid">Cor sólida</option>
+            <option value="gradient">Degradê</option>
+            <option value="image">Imagem</option>
+          </select>
+        </label>
+        <label class="row">Cor de fundo <input type="color" data-key="bgColor"></label>
+        <label class="row" data-show="gradient">Segunda cor <input type="color" data-key="bgColor2"></label>
+        <label data-show="gradient">Ângulo do degradê <output data-for="bgAngle"></output>
+          <input type="range" data-key="bgAngle" min="0" max="360" step="5">
+        </label>
+        <div data-show="image" class="stack">
+          <label>URL da imagem <input type="url" data-key="bgImageUrl" placeholder="https://…"></label>
+          <label class="btn file-btn">Escolher imagem do aparelho
+            <input type="file" accept="image/*" id="bgFile" hidden>
+          </label>
+          <label>Desfoque <output data-for="bgBlur"></output>
+            <input type="range" data-key="bgBlur" min="0" max="20" step="1">
+          </label>
+          <label>Escurecer <output data-for="bgDim"></output>
+            <input type="range" data-key="bgDim" min="0" max="0.8" step="0.05">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Cores</legend>
+        <label class="row">Texto <input type="color" data-key="textColor"></label>
+        <label class="row">Destaque (botões) <input type="color" data-key="accentColor"></label>
+        <label class="row">Cartões <input type="color" data-key="cardColor"></label>
+        <label class="row">Barra superior <input type="color" data-key="barColor"></label>
+        <label>Opacidade dos cartões <output data-for="cardOpacity"></output>
+          <input type="range" data-key="cardOpacity" min="0.2" max="1" step="0.05">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Formato</legend>
+        <label>Arredondamento <output data-for="radius"></output>
+          <input type="range" data-key="radius" min="0" max="32" step="1">
+        </label>
+        <label>Sombra <output data-for="shadow"></output>
+          <input type="range" data-key="shadow" min="0" max="1" step="0.05">
+        </label>
+        <label>Borda <output data-for="border"></output>
+          <input type="range" data-key="border" min="0" max="4" step="1">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Backup</legend>
+        <div class="stack">
+          <button class="btn" id="btnExport">Exportar notas e tema (.json)</button>
+          <label class="btn file-btn">Importar backup
+            <input type="file" accept="application/json,.json" id="importFile" hidden>
+          </label>
+          <button class="btn" id="btnExportTheme">Copiar link com meu tema</button>
+          <button class="btn danger" id="btnReset">Restaurar visual padrão</button>
+        </div>
+      </fieldset>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <!-- Compartilhar -->
+  <dialog id="shareDialog" class="modal small">
+    <form method="dialog" class="share-inner">
+      <h2>Compartilhar o app</h2>
+      <p>Envie este link. A pessoa abre no navegador e toca em <strong>Instalar</strong> (ou “Adicionar à tela inicial”).</p>
+      <div id="qr" class="qr"></div>
+      <div class="share-link">
+        <input type="text" id="shareUrl" readonly>
+        <button type="button" class="btn primary" id="btnCopy">Copiar</button>
+      </div>
+      <p class="hint">As notas ficam salvas só no aparelho de cada pessoa — ninguém vê as suas.</p>
+      <button class="btn" type="submit">Fechar</button>
+    </form>
+  </dialog>
+
+  <!-- Ajuda instalar iOS -->
+  <dialog id="iosDialog" class="modal small">
+    <form method="dialog" class="share-inner">
+      <h2>Instalar no iPhone/iPad</h2>
+      <ol>
+        <li>Abra este site no <strong>Safari</strong>.</li>
+        <li>Toque em <strong>Compartilhar</strong> (quadrado com seta ↑).</li>
+        <li>Escolha <strong>Adicionar à Tela de Início</strong>.</li>
+      </ol>
+      <button class="btn primary" type="submit">Entendi</button>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
