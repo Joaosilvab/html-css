@@ -1,5 +1,5 @@
 /* Service worker: deixa o app funcionando offline */
-const CACHE = 'notas-v5';
+const CACHE = 'notas-v6';
 const ASSETS = [
   './',
   './index.html',

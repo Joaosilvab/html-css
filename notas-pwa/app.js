@@ -328,7 +328,7 @@
         if (!n || typeof n !== 'object') continue;
         const note = {
           id: n.id && !ids.has(n.id) ? String(n.id) : uid(),
-          title: String(n.title || ''), body: String(n.body || ''), html: typeof n.html === 'string' ? sanitizeHtml(n.html) : '',
+          title: String(n.title || ''), titleHtml: typeof n.titleHtml === 'string' ? sanitizeHtml(n.titleHtml, true) : '', body: String(n.body || ''), html: typeof n.html === 'string' ? sanitizeHtml(n.html) : '',
           color: typeof n.color === 'string' ? n.color : '', textColor: typeof n.textColor === 'string' ? n.textColor : '', titleColor: typeof n.titleColor === 'string' ? n.titleColor : '', font: typeof n.font === 'string' ? n.font : '',
           pinned: !!n.pinned, created: +n.created || Date.now(), updated: +n.updated || Date.now()
         };
@@ -356,7 +356,8 @@
   const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|[a-z]{3,20})$/i;
   const STYLE_PROPS = ['color', 'background-color', 'font-weight', 'font-style', 'text-decoration-line', 'text-decoration'];
 
-  function sanitizeHtml(html) {
+  const INLINE_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'SPAN', 'FONT']);
+  function sanitizeHtml(html, inlineOnly = false) {
     const src = new DOMParser().parseFromString(`<body>${html || ''}</body>`, 'text/html').body;
     const out = document.createElement('div');
     const walk = (from, to) => {
@@ -365,7 +366,11 @@
         if (node.nodeType !== 1) continue;
         const tag = node.tagName;
         if (/^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|IFRAME|OBJECT)$/.test(tag)) continue;
-        if (!RICH_TAGS.has(tag)) { walk(node, to); continue; }
+        if (!RICH_TAGS.has(tag) || (inlineOnly && !INLINE_TAGS.has(tag))) {
+          if (inlineOnly && /^(BR|DIV|P|LI)$/.test(tag) && to.childNodes.length) to.appendChild(document.createTextNode(' '));
+          walk(node, to);
+          continue;
+        }
         const el = document.createElement(tag === 'FONT' ? 'span' : tag.toLowerCase());
         const styles = [];
         for (const prop of STYLE_PROPS) {
@@ -404,6 +409,11 @@
 
   function textToHtml(text) { return escapeHtml(text || '').replace(/\n/g, '<br>'); }
   function noteHtml(n) { return n.html ? sanitizeHtml(n.html) : textToHtml(n.body); }
+  function titleHtml(n) { return n.titleHtml ? sanitizeHtml(n.titleHtml, true) : escapeHtml(n.title || ''); }
+  function readTitle(el) {
+    const html = sanitizeHtml(el.innerHTML, true);
+    return { html, text: htmlToText(html).replace(/\s+/g, ' ').trim() };
+  }
 
   // destaca a busca só nos textos (sem quebrar as tags)
   function markMatches(el, q) {
@@ -465,7 +475,9 @@
   const HILITE_COLORS = ['#fff176', '#a5d6a7', '#90caf9', '#f48fb1', '#ffcc80', '#ce93d8'];
 
   function buildToolbar(bar) {
-    const target = document.getElementById(bar.dataset.target);
+    const fallback = document.getElementById(bar.dataset.target);
+    const scope = bar.closest('.composer, .editor-inner') || document.body;
+    const getTarget = () => (savedEditable && scope.contains(savedEditable) ? savedEditable : fallback);
     bar.innerHTML = '';
     const btn = (label, title, onClick, html) => {
       const b = document.createElement('button');
@@ -481,13 +493,13 @@
     };
     const sep = () => { const s = document.createElement('span'); s.className = 'rt-sep'; bar.appendChild(s); };
 
-    btn('<b>B</b>', 'Negrito', () => format(target, 'bold'), true);
-    btn('<i>I</i>', 'Itálico', () => format(target, 'italic'), true);
-    btn('<u>U</u>', 'Sublinhado', () => format(target, 'underline'), true);
+    btn('<b>B</b>', 'Negrito', () => format(getTarget(), 'bold'), true);
+    btn('<i>I</i>', 'Itálico', () => format(getTarget(), 'italic'), true);
+    btn('<u>U</u>', 'Sublinhado', () => format(getTarget(), 'underline'), true);
     sep();
     const colorBtn = btn('A<span class="bar"></span>', 'Cor da letra do trecho selecionado', () => toggle(colorPal, colorBtn), true);
     const hiBtn = btn('🖍', 'Marca-texto', () => toggle(hiPal, hiBtn));
-    btn('⌫', 'Limpar formatação do trecho', () => format(target, 'removeFormat'));
+    btn('⌫', 'Limpar formatação do trecho', () => format(getTarget(), 'removeFormat'));
 
     const palette = (label, colors, apply, extra) => {
       const p = document.createElement('div');
@@ -518,19 +530,19 @@
       bar.appendChild(p);
       return p;
     };
-    const colorPal = palette('Cor:', TEXT_COLORS.filter(Boolean), c => format(target, 'foreColor', c));
-    const hiPal = palette('Marca-texto:', HILITE_COLORS, c => format(target, 'hiliteColor', c), p => {
+    const colorPal = palette('Cor:', TEXT_COLORS.filter(Boolean), c => format(getTarget(), 'foreColor', c));
+    const hiPal = palette('Marca-texto:', HILITE_COLORS, c => format(getTarget(), 'hiliteColor', c), p => {
       const none = document.createElement('button');
       none.type = 'button';
       none.className = 'swatch none';
       none.title = 'Sem marca-texto';
       none.addEventListener('mousedown', e => e.preventDefault());
-      none.addEventListener('click', () => format(target, 'hiliteColor', 'transparent'));
+      none.addEventListener('click', () => format(getTarget(), 'hiliteColor', 'transparent'));
       p.appendChild(none);
     });
     const hint = document.createElement('span');
     hint.className = 'rt-hint';
-    hint.textContent = 'Selecione uma palavra ou linha e escolha a cor.';
+    hint.textContent = 'Selecione uma palavra (no título ou no texto) e escolha a cor.';
     hint.hidden = true;
     bar.appendChild(hint);
 
@@ -544,13 +556,19 @@
     }
   }
 
-  function setupRich(el) {
+  function setupRich(el, singleLine = false, onEnter) {
     // colar sempre como texto simples (evita lixo de outros apps)
     el.addEventListener('paste', e => {
       e.preventDefault();
-      const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      let text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      if (singleLine) text = text.replace(/\s*\n\s*/g, ' ');
       document.execCommand('insertText', false, text);
     });
+    if (singleLine) {
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); if (onEnter) onEnter(); }
+      });
+    }
     // mantém o placeholder funcionando quando o campo fica vazio
     el.addEventListener('input', () => {
       if (!el.textContent.trim() && !el.querySelector('li')) el.innerHTML = '';
@@ -614,20 +632,21 @@
   setupRich(newBody);
 
   function addNote() {
-    const title = $('#newTitle').value.trim();
+    const t = readTitle($('#newTitle'));
+    const title = t.text;
     const html = sanitizeHtml(newBody.innerHTML);
     const body = htmlToText(html).trim();
     if (!title && !body) { $('#newTitle').focus(); return; }
     const now = Date.now();
-    notes.unshift({ id: uid(), title, body, html: body ? html : '', color: newColor, textColor: newTextColor, titleColor: newTitleColor, font: '', pinned: false, created: now, updated: now });
+    notes.unshift({ id: uid(), title, titleHtml: title ? t.html : '', body, html: body ? html : '', color: newColor, textColor: newTextColor, titleColor: newTitleColor, font: '', pinned: false, created: now, updated: now });
     saveNotes();
-    $('#newTitle').value = '';
+    $('#newTitle').innerHTML = '';
     newBody.innerHTML = '';
     render();
   }
   $('#btnAdd').addEventListener('click', addNote);
   newBody.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) addNote(); });
-  $('#newTitle').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); newBody.focus(); } });
+  setupRich($('#newTitle'), true, () => newBody.focus());
 
   $('#search').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); render(); });
   $$('.chip').forEach(c => c.addEventListener('click', () => {
@@ -667,11 +686,13 @@
       if (n.font) card.style.setProperty('--note-font', n.font);
       card.innerHTML = `
         <button class="pin ${n.pinned ? 'on' : ''}" title="${n.pinned ? 'Desafixar' : 'Fixar'}" aria-label="Fixar">📌</button>
-        ${n.title ? `<h3${n.titleColor ? ` style="color:${escapeHtml(n.titleColor)}"` : ''}>${highlight(n.title)}</h3>` : ''}
+        ${n.title ? `<h3${n.titleColor ? ` style="color:${escapeHtml(n.titleColor)}"` : ''}>${titleHtml(n)}</h3>` : ''}
         ${n.body.trim() ? `<div class="note-body">${noteHtml(n)}</div>` : ''}
         <span class="date">${dateFmt.format(n.updated)}</span>`;
       const bodyEl = card.querySelector('.note-body');
       if (bodyEl) markMatches(bodyEl, query);
+      const titleEl = card.querySelector('h3');
+      if (titleEl) markMatches(titleEl, query);
       card.querySelector('.pin').addEventListener('click', e => {
         e.stopPropagation();
         n.pinned = !n.pinned;
@@ -710,7 +731,7 @@
     editingId = id;
     const n = current();
     if (!n) return;
-    editTitle.value = n.title;
+    editTitle.innerHTML = titleHtml(n);
     editBody.innerHTML = noteHtml(n);
     editFont.value = n.font || '';
     buildSwatches($('#editSwatches'), n.color, c => { n.color = c; touch(n); paintEditor(n); });
@@ -722,7 +743,14 @@
   }
   function touch(n) { n.updated = Date.now(); saveNotes(); render(); }
 
-  editTitle.addEventListener('input', () => { const n = current(); if (n) { n.title = editTitle.value; touch(n); } });
+  setupRich(editTitle, true, () => editBody.focus());
+  editTitle.addEventListener('input', () => {
+    const n = current(); if (!n) return;
+    const t = readTitle(editTitle);
+    n.title = t.text;
+    n.titleHtml = t.text ? t.html : '';
+    touch(n);
+  });
   setupRich(editBody);
   editBody.addEventListener('input', () => {
     const n = current(); if (!n) return;
@@ -735,7 +763,7 @@
   $('#btnDuplicate').addEventListener('click', () => {
     const n = current(); if (!n) return;
     const now = Date.now();
-    const copyNote = { ...n, id: uid(), title: n.title ? n.title + ' (cópia)' : '', pinned: false, created: now, updated: now };
+    const copyNote = { ...n, id: uid(), title: n.title ? n.title + ' (cópia)' : '', titleHtml: n.title ? titleHtml(n) + ' (cópia)' : '', pinned: false, created: now, updated: now };
     notes.unshift(copyNote);
     saveNotes(); render();
     openEditor(copyNote.id);
