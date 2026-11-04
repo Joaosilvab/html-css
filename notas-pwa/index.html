@@ -42,7 +42,10 @@
       <input type="text" id="newTitle" placeholder="Título" maxlength="120">
       <textarea id="newBody" placeholder="Escreva uma nota…" rows="1"></textarea>
       <div class="composer-footer">
-        <div class="swatches" id="newSwatches"></div>
+        <div class="swatch-groups">
+          <div class="swatch-row"><span>Fundo</span><div class="swatches" id="newSwatches"></div></div>
+          <div class="swatch-row"><span>Letra</span><div class="swatches" id="newTextSwatches"></div></div>
+        </div>
         <button class="btn primary" id="btnAdd">Adicionar</button>
       </div>
     </section>
@@ -63,7 +66,8 @@
       <input type="text" id="editTitle" placeholder="Título" maxlength="120">
       <textarea id="editBody" placeholder="Nota"></textarea>
       <div class="editor-opts">
-        <label>Cor <span class="swatches" id="editSwatches"></span></label>
+        <label>Cor da nota <span class="swatches" id="editSwatches"></span></label>
+        <label>Cor da letra <span class="swatches" id="editTextSwatches"></span></label>
         <label>Fonte da nota
           <select id="editFont"></select>
         </label>
