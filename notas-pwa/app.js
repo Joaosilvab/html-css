@@ -163,6 +163,7 @@
     r.setProperty('--border-color', rgba(theme.textColor, 0.15));
     r.setProperty('--card-width', theme.cardWidth + 'px');
     r.setProperty('--bg-blur', theme.bgType === 'image' ? theme.bgBlur + 'px' : '0px');
+    $('.bg-layer').classList.toggle('blurred', theme.bgType === 'image' && theme.bgBlur > 0);
     r.setProperty('--bg-dim', theme.bgType === 'image' ? theme.bgDim : 0);
 
     let bg;
@@ -607,8 +608,30 @@
   });
   window.addEventListener('appinstalled', () => { btnInstall.hidden = true; toast('App instalado! 🎉'); });
 
+  // iOS (app instalado): garante que tocar num campo abre o teclado
+  let touchMoved = false;
+  document.addEventListener('touchstart', () => { touchMoved = false; }, { passive: true });
+  document.addEventListener('touchmove', () => { touchMoved = true; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (touchMoved) return;
+    const el = e.target.closest && e.target.closest('input:not([type=checkbox]):not([type=range]):not([type=color]):not([type=file]), textarea');
+    if (el && document.activeElement !== el && !el.disabled) el.focus({ preventScroll: true });
+  }, { passive: true });
+
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then(reg => reg.update()).catch(() => {});
+    });
+    // quando sai uma versão nova, recarrega uma vez para aplicar
+    let reloaded = false;
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloaded) return;
+      const active = document.activeElement;
+      if (active && /INPUT|TEXTAREA/.test(active.tagName)) return; // não interrompe quem está digitando
+      reloaded = true;
+      location.reload();
+    });
   }
 
   // Sincroniza entre abas

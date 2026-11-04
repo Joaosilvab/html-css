@@ -43,8 +43,8 @@ body {
   background: var(--bg);
   background-size: cover;
   background-position: center;
-  filter: blur(var(--bg-blur));
 }
+.bg-layer.blurred { filter: blur(var(--bg-blur)); }
 .bg-layer::after {
   content: "";
   position: absolute;
@@ -53,6 +53,11 @@ body {
 }
 
 button, input, select, textarea { font: inherit; color: inherit; }
+input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; touch-action: manipulation; }
+/* iOS: campos com menos de 16px dão zoom e podem travar o foco */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select { font-size: max(16px, 1em) !important; }
+}
 
 /* ---------- Barra superior ---------- */
 .topbar {
@@ -65,8 +70,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
   padding: 10px 16px;
   padding-top: max(10px, env(safe-area-inset-top));
   background: var(--bar);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border-bottom: var(--border) solid var(--border-color);
 }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -277,7 +280,7 @@ mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: in
   box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
 }
 .modal.small { width: min(420px, calc(100vw - 32px)); }
-.modal::backdrop { background: rgba(0, 0, 0, .45); backdrop-filter: blur(2px); }
+.modal::backdrop { background: rgba(0, 0, 0, .5); }
 .editor-inner { display: flex; flex-direction: column; gap: 10px; padding: 18px; }
 .editor-inner textarea { min-height: 40vh; }
 .editor-opts { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; font-size: .9rem; }
