@@ -440,8 +440,39 @@
     const r = sel.getRangeAt(0);
     const host = r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement;
     const ed = host && host.closest && host.closest('.rich');
-    if (ed) { savedRange = r.cloneRange(); savedEditable = ed; }
+    if (ed) {
+      savedRange = r.cloneRange(); savedEditable = ed;
+      if (!r.collapsed) hideKeyboard(ed);
+    }
   });
+
+  // Com texto selecionado o teclado fica escondido (para ver a barra de formatação).
+  // Ao tocar de novo no texto para escrever, o teclado volta.
+  let refocusing = false;
+  function hideKeyboard(ed) {
+    if (ed.inputMode === 'none' || refocusing) return;
+    ed.inputMode = 'none';
+    if (document.activeElement === ed) {
+      // o iOS só aplica o inputmode ao focar de novo
+      const keep = savedRange && savedRange.cloneRange();
+      refocusing = true;
+      ed.blur();
+      ed.focus({ preventScroll: true });
+      if (keep) { const s = document.getSelection(); s.removeAllRanges(); s.addRange(keep); }
+      setTimeout(() => { refocusing = false; }, 0);
+    }
+  }
+  function showKeyboard(ed) {
+    if (ed.inputMode !== 'none') return;
+    ed.inputMode = '';
+    const sel = document.getSelection();
+    const keep = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    refocusing = true;
+    ed.blur();
+    ed.focus({ preventScroll: true }); // dentro do toque: o teclado abre
+    if (keep) { sel.removeAllRanges(); sel.addRange(keep); }
+    setTimeout(() => { refocusing = false; }, 0);
+  }
 
   function restoreSelection(target) {
     if (savedEditable !== target || !savedRange) {
@@ -575,6 +606,12 @@
       const text = (e.clipboardData || window.clipboardData).getData('text/plain');
       document.execCommand('insertText', false, text);
     });
+    // tocou no texto (sem seleção) depois de formatar: volta o teclado
+    el.addEventListener('click', () => {
+      const sel = document.getSelection();
+      if (sel && sel.rangeCount && sel.getRangeAt(0).collapsed) showKeyboard(el);
+    });
+    el.addEventListener('blur', () => { if (!refocusing) el.inputMode = ''; });
     // mantém o placeholder funcionando quando o campo fica vazio
     el.addEventListener('input', () => {
       if (!el.textContent.trim() && !el.querySelector('li')) el.innerHTML = '';
