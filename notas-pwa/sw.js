@@ -1,5 +1,6 @@
-/* Service worker: deixa o app funcionando offline */
-const CACHE = 'notas-v11';
+/* Service worker: deixa o app funcionando offline e sempre pega a versão nova quando há internet */
+const VERSION = 12;
+const CACHE = 'notas-v' + VERSION;
 const ASSETS = [
   './',
   './index.html',
@@ -13,7 +14,12 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache: 'reload' ignora o cache HTTP do navegador (senão podia guardar a versão antiga)
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e => {
@@ -22,6 +28,10 @@ self.addEventListener('activate', e => {
       .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', e => {
+  if (e.data === 'version' && e.source) e.source.postMessage({ version: VERSION });
 });
 
 self.addEventListener('fetch', e => {
@@ -43,9 +53,9 @@ self.addEventListener('fetch', e => {
 
   if (url.origin !== location.origin) return;
 
-  // Arquivos do app: rede primeiro (para pegar atualizações), cache se offline
+  // Arquivos do app: sempre da rede, sem cache HTTP; se estiver offline, usa a cópia salva
   e.respondWith(
-    fetch(req)
+    fetch(url.href, { cache: 'no-store', credentials: 'same-origin' })
       .then(res => {
         if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
         return res;
