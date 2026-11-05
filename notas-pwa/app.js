@@ -725,6 +725,7 @@
   function paintEditor(n) {
     const inner = $('.editor-inner', editor);
     inner.style.background = n.color ? n.color : '';
+    editor.style.background = n.color ? n.color : '';
     $('.editor-actions', editor).style.background = n.color ? n.color : '';
     inner.style.color = noteTextColor(n);
     editTitle.style.color = noteTitleColor(n);
@@ -752,8 +753,12 @@
     buildSwatches($('#editTitleSwatches'), n.titleColor || '', c => { n.titleColor = c; touch(n); paintEditor(n); }, TEXT_COLORS, true);
     buildSwatches($('#editTextSwatches'), n.textColor || '', c => { n.textColor = c; touch(n); paintEditor(n); }, TEXT_COLORS, true);
     paintEditor(n);
+    editor.scrollTop = 0;
     editor.showModal();
-    (isNew ? editTitle : editBody).focus();
+    // nota salva abre sem teclado: o foco fica no botão Voltar.
+    // O teclado só aparece quando tocar no título ou no texto.
+    if (isNew) editTitle.focus();
+    else $('#btnBack').focus({ preventScroll: true });
   }
   // botões "Cor da nota / do título / do texto": cada um abre as próprias opções
   function closeOptPanels() {
