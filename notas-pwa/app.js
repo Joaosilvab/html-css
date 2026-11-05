@@ -33,7 +33,7 @@
   const DEFAULT_THEME = {
     appTitle: 'Minhas Notas',
     layout: 'grid',
-    cardWidth: 240,
+    cardWidth: 150,
     uiFont: "'Inter', sans-serif",
     titleFont: "'Poppins', sans-serif",
     noteFont: "'Inter', sans-serif",
@@ -95,11 +95,13 @@
   }
 
   let theme = { ...DEFAULT_THEME, ...store.get(THEME_KEY, {}) };
+  // cartões menores: quem estava no tamanho antigo padrão (240) passa para o novo
+  if (!localStorage.getItem('notas.mig.cards')) {
+    if (theme.cardWidth === 240) { theme.cardWidth = DEFAULT_THEME.cardWidth; store.set(THEME_KEY, theme); }
+    try { localStorage.setItem('notas.mig.cards', '1'); } catch { /* ignora */ }
+  }
   let filter = 'all';
   let query = '';
-  let newColor = '';
-  let newTextColor = '';
-  let newTitleColor = '';
   let editingId = null;
 
   // Tema recebido por link (?tema=...)
@@ -614,50 +616,16 @@
   // título "auto" = mesma cor do texto
   function noteTitleColor(n) { return n.titleColor || noteTextColor(n); }
 
-  function paintComposer() {
-    const el = $('#composer');
-    el.style.background = newColor ? newColor : '';
-    const draft = { color: newColor, textColor: newTextColor, titleColor: newTitleColor };
-    $('#newTitle').style.color = noteTitleColor(draft);
-    $('#newBody').style.color = noteTextColor(draft);
-  }
-
-  buildSwatches($('#newSwatches'), newColor, c => { newColor = c; paintComposer(); });
-  buildSwatches($('#newTitleSwatches'), newTitleColor, c => { newTitleColor = c; paintComposer(); }, TEXT_COLORS, true);
-  buildSwatches($('#newTextSwatches'), newTextColor, c => { newTextColor = c; paintComposer(); }, TEXT_COLORS, true);
-
-  $('#btnColors').addEventListener('click', () => {
-    const g = $('#colorGroups');
-    g.hidden = !g.hidden;
-    $('#btnColors').setAttribute('aria-expanded', String(!g.hidden));
+  // ---------- Nova nota (botão +) ----------
+  $('#btnNew').addEventListener('click', () => {
+    const now = Date.now();
+    const n = { id: uid(), title: '', body: '', html: '', color: '', textColor: '', titleColor: '', font: '', pinned: false, created: now, updated: now };
+    notes.unshift(n);
+    saveNotes();
+    openEditor(n.id, true);
   });
 
-  const newBody = $('#newBody');
-  setupRich(newBody);
-
-  function addNote() {
-    const title = $('#newTitle').value.trim();
-    const html = sanitizeHtml(newBody.innerHTML);
-    const body = htmlToText(html).trim();
-    if (!title && !body) { $('#newTitle').focus(); return; }
-    const now = Date.now();
-    notes.unshift({ id: uid(), title, body, html: body ? html : '', color: newColor, textColor: newTextColor, titleColor: newTitleColor, font: '', pinned: false, created: now, updated: now });
-    saveNotes();
-    $('#newTitle').value = '';
-    newBody.innerHTML = '';
-    render();
-  }
-  $('#btnAdd').addEventListener('click', addNote);
-  newBody.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) addNote(); });
-  $('#newTitle').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); newBody.focus(); } });
-
   $('#search').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); render(); });
-  $$('.chip').forEach(c => c.addEventListener('click', () => {
-    $$('.chip').forEach(x => x.classList.remove('active'));
-    c.classList.add('active');
-    filter = c.dataset.filter;
-    render();
-  }));
 
   function escapeHtml(s) {
     return s.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -673,6 +641,7 @@
   function render() {
     const list = notes
       .filter(n => filter !== 'pinned' || n.pinned)
+      .filter(n => n.id !== editingId || n.title.trim() || n.body.trim()) // nota nova ainda vazia não aparece
       .filter(n => !query || (n.title + ' ' + n.body).toLowerCase().includes(query))
       .sort((a, b) => (b.pinned - a.pinned) || (b.updated - a.updated));
 
@@ -702,10 +671,10 @@
       card.addEventListener('click', () => openEditor(n.id));
       card.addEventListener('keydown', e => { if (e.key === 'Enter') openEditor(n.id); });
       el.appendChild(card);
+      if (bodyEl && bodyEl.scrollHeight > bodyEl.clientHeight + 2) bodyEl.classList.add('clip');
     }
     $('#empty').hidden = list.length > 0;
-    $('#empty').textContent = notes.length ? 'Nenhuma nota encontrada.' : 'Nenhuma nota ainda. Escreva a primeira aí em cima ✍️';
-    $('#count').textContent = `${list.length} de ${notes.length} nota${notes.length === 1 ? '' : 's'}`;
+    $('#empty').textContent = list.length || !query ? 'Nenhuma nota ainda. Toque no + para criar a primeira ✍️' : 'Nenhuma nota encontrada.';
   }
 
   // ---------- Editor ----------
@@ -719,6 +688,7 @@
   function paintEditor(n) {
     const inner = $('.editor-inner', editor);
     inner.style.background = n.color ? n.color : '';
+    $('.editor-actions', editor).style.background = n.color ? n.color : '';
     inner.style.color = noteTextColor(n);
     editTitle.style.color = noteTitleColor(n);
     const uiColor = n.color ? readableOn(n.color) : '';
@@ -728,7 +698,7 @@
     $('#editMeta').textContent = `Criada em ${dateFmt.format(n.created)} · Editada em ${dateFmt.format(n.updated)}`;
   }
 
-  function openEditor(id) {
+  function openEditor(id, isNew = false) {
     editingId = id;
     const n = current();
     if (!n) return;
@@ -740,7 +710,7 @@
     buildSwatches($('#editTextSwatches'), n.textColor || '', c => { n.textColor = c; touch(n); paintEditor(n); }, TEXT_COLORS, true);
     paintEditor(n);
     editor.showModal();
-    editBody.focus();
+    (isNew ? editTitle : editBody).focus();
   }
   function touch(n) { n.updated = Date.now(); saveNotes(); render(); }
 
