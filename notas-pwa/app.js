@@ -900,9 +900,33 @@
     if (el && document.activeElement !== el && !el.disabled) el.focus();
   }, { passive: true });
 
+  // ---------- Versão e "Atualizar app" ----------
+  const APP_VERSION = 12;
+  $('#appVersion').textContent = 'Versão ' + APP_VERSION;
+  if (/[?&]v=/.test(location.search)) history.replaceState(null, '', location.pathname);
+  $('#btnUpdate').addEventListener('click', async () => {
+    toast('Atualizando…');
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if (window.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter(k => k.startsWith('notas-')).map(k => caches.delete(k)));
+      }
+    } catch { /* segue mesmo assim */ }
+    // suas notas e o tema ficam salvos: só os arquivos do app são baixados de novo
+    location.replace(location.pathname + '?v=' + Date.now());
+  });
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').then(reg => reg.update()).catch(() => {});
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+        reg.update();
+        // no iPhone o app volta do segundo plano sem recarregar: procura versão nova ao voltar
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+      }).catch(() => {});
     });
     // quando sai uma versão nova, recarrega uma vez para aplicar
     let reloaded = false;
