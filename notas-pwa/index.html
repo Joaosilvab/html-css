@@ -51,12 +51,15 @@
       <div class="rt-toolbar" data-target="editBody"></div>
       <div id="editBody" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto da nota" data-placeholder="Nota"></div>
       <div class="editor-opts">
-        <label>Cor da nota <span class="swatches" id="editSwatches"></span></label>
-        <label>Cor do título <span class="swatches" id="editTitleSwatches"></span></label>
-        <label>Cor do texto <span class="swatches" id="editTextSwatches"></span></label>
-        <label>Fonte da nota
-          <select id="editFont"></select>
-        </label>
+        <div class="opt-buttons">
+          <button type="button" class="opt-btn" data-panel="editSwatches" aria-expanded="false"><span class="opt-dot" id="dotNote"></span>Cor da nota</button>
+          <button type="button" class="opt-btn" data-panel="editTitleSwatches" aria-expanded="false"><span class="opt-dot opt-letter" id="dotTitle">A</span>Cor do título</button>
+          <button type="button" class="opt-btn" data-panel="editTextSwatches" aria-expanded="false"><span class="opt-dot opt-letter" id="dotText">A</span>Cor do texto</button>
+        </div>
+        <div class="swatches opt-panel" id="editSwatches" hidden></div>
+        <div class="swatches opt-panel" id="editTitleSwatches" hidden></div>
+        <div class="swatches opt-panel" id="editTextSwatches" hidden></div>
+        <label class="opt-font">Fonte da nota <select id="editFont"></select></label>
       </div>
       <p class="meta" id="editMeta"></p>
       <div class="editor-actions">

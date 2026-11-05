@@ -694,6 +694,11 @@
     const uiColor = n.color ? readableOn(n.color) : '';
     $$('.editor-opts, .editor-actions, #editMeta', editor).forEach(el => { el.style.color = uiColor; });
     editBody.style.fontFamily = n.font || '';
+    const dot = $('#dotNote');
+    dot.style.background = n.color || '';
+    dot.classList.toggle('none', !n.color);
+    $('#dotTitle').style.color = noteTitleColor(n) || 'var(--text)';
+    $('#dotText').style.color = noteTextColor(n) || 'var(--text)';
     $('#btnPin').textContent = n.pinned ? '📌 Desafixar' : '📌 Fixar';
     $('#editMeta').textContent = `Criada em ${dateFmt.format(n.created)} · Editada em ${dateFmt.format(n.updated)}`;
   }
@@ -705,6 +710,7 @@
     editTitle.value = n.title;
     editBody.innerHTML = noteHtml(n);
     editFont.value = n.font || '';
+    closeOptPanels();
     buildSwatches($('#editSwatches'), n.color, c => { n.color = c; touch(n); paintEditor(n); });
     buildSwatches($('#editTitleSwatches'), n.titleColor || '', c => { n.titleColor = c; touch(n); paintEditor(n); }, TEXT_COLORS, true);
     buildSwatches($('#editTextSwatches'), n.textColor || '', c => { n.textColor = c; touch(n); paintEditor(n); }, TEXT_COLORS, true);
@@ -712,6 +718,19 @@
     editor.showModal();
     (isNew ? editTitle : editBody).focus();
   }
+  // botões "Cor da nota / do título / do texto": cada um abre as próprias opções
+  function closeOptPanels() {
+    $$('.opt-panel', editor).forEach(p => { p.hidden = true; });
+    $$('.opt-btn', editor).forEach(b => b.setAttribute('aria-expanded', 'false'));
+  }
+  $$('.opt-btn', editor).forEach(b => b.addEventListener('click', () => {
+    const panel = document.getElementById(b.dataset.panel);
+    const open = panel.hidden;
+    closeOptPanels();
+    panel.hidden = !open;
+    b.setAttribute('aria-expanded', String(open));
+  }));
+
   function touch(n) { n.updated = Date.now(); saveNotes(); render(); }
 
   editTitle.addEventListener('input', () => { const n = current(); if (n) { n.title = editTitle.value; touch(n); } });
