@@ -38,30 +38,11 @@
   </header>
 
   <main>
-    <section class="composer card" id="composer">
-      <input type="text" id="newTitle" placeholder="Título" maxlength="120">
-      <div id="newBody" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto da nota" data-placeholder="Escreva uma nota…"></div>
-      <div class="rt-toolbar" data-target="newBody"></div>
-      <div class="composer-footer">
-        <button type="button" class="btn small" id="btnColors" aria-expanded="false">🎨 Cores</button>
-        <div class="swatch-groups" id="colorGroups" hidden>
-          <div class="swatch-row"><span>Fundo</span><div class="swatches" id="newSwatches"></div></div>
-          <div class="swatch-row"><span>Título</span><div class="swatches" id="newTitleSwatches"></div></div>
-          <div class="swatch-row"><span>Texto</span><div class="swatches" id="newTextSwatches"></div></div>
-        </div>
-        <button class="btn primary" id="btnAdd">Adicionar</button>
-      </div>
-    </section>
-
-    <div class="filters">
-      <button class="chip active" data-filter="all">Todas</button>
-      <button class="chip" data-filter="pinned">📌 Fixadas</button>
-      <span class="count" id="count"></span>
-    </div>
-
     <section id="notes" class="notes grid" aria-live="polite"></section>
-    <p class="empty" id="empty" hidden>Nenhuma nota ainda. Escreva a primeira aí em cima ✍️</p>
+    <p class="empty" id="empty" hidden>Nenhuma nota ainda. Toque no + para criar a primeira ✍️</p>
   </main>
+
+  <button class="fab" id="btnNew" title="Nova nota" aria-label="Nova nota">+</button>
 
   <!-- Editor de nota -->
   <dialog id="editor" class="modal">
@@ -110,7 +91,7 @@
           </select>
         </label>
         <label>Largura mínima dos cartões <output data-for="cardWidth"></output>
-          <input type="range" data-key="cardWidth" min="160" max="420" step="10">
+          <input type="range" data-key="cardWidth" min="120" max="420" step="10">
         </label>
       </fieldset>
 
