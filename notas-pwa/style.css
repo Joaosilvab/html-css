@@ -396,44 +396,44 @@ body.editing > .fab { display: none; }
 .rich img { cursor: default; }
 .note-body img { width: 100%; max-height: 110px; object-fit: cover; }
 img.missing { display: none; }
-/* desenhos: mostra inteiro, sem cortar, no tamanho natural */
+/* escrita à mão: ocupa a largura toda, como uma linha do texto */
 .rich img[data-img^="desenho"], .note-body img[data-img^="desenho"] {
-  width: auto;
-  max-width: 100%;
-  max-height: 260px;
+  width: 100%;
+  max-height: none;
   object-fit: contain;
   border-radius: 0;
+  margin: 0;
 }
-.note-body img[data-img^="desenho"] { max-height: 90px; }
 
-/* quadro de desenho */
-body.drawing { overflow: hidden; }
-.draw-pad {
+/* escrever com o dedo dentro da nota */
+#editor .editor-inner { position: relative; }
+.ink-spot { display: block; width: 100%; border: 1.5px dashed rgba(127, 127, 127, .45); border-radius: 8px; }
+.ink-area { position: absolute; z-index: 5; touch-action: none; }
+.ink-area canvas { display: block; touch-action: none; cursor: crosshair; }
+body.inking #editor .editor-actions { display: none; }
+body.inking #editor { padding-bottom: 140px; }
+.ink-tools {
   position: fixed;
-  inset: 0;
-  z-index: 60;
+  left: 8px;
+  right: 8px;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 40;
   display: flex;
   flex-direction: column;
-  background: var(--card-solid);
-  color: var(--text);
-}
-.draw-pad[hidden] { display: none; }
-.draw-top, .draw-bottom {
-  display: flex;
-  align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  flex-wrap: wrap;
+  border-radius: 16px;
+  background: var(--card-solid);
+  color: var(--text);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .25);
+  max-width: 560px;
+  margin: 0 auto;
 }
-.draw-top { padding-top: max(10px, env(safe-area-inset-top)); justify-content: space-between; border-bottom: 1px solid var(--border-color); }
-.draw-bottom { padding-bottom: max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border-color); flex-direction: column; align-items: stretch; }
-.draw-title { font-size: .85rem; opacity: .7; text-align: center; flex: 1; }
-.draw-area { flex: 1; position: relative; background: var(--pad-bg); touch-action: none; overflow: hidden; }
-.draw-area canvas { position: absolute; inset: 0; touch-action: none; cursor: crosshair; }
-.draw-colors { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.draw-colors .swatch { width: 30px; height: 30px; }
-.draw-tools { display: flex; gap: 6px; align-items: center; }
-.draw-sizes { display: flex; gap: 6px; margin-right: auto; }
+.ink-tools[hidden] { display: none; }
+.ink-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ink-colors .swatch { width: 28px; height: 28px; }
+.ink-sizes { display: flex; gap: 6px; margin-right: auto; }
+.ink-done { padding: 7px 14px; }
 .size-btn { display: grid; place-items: center; }
 .size-btn span { display: block; border-radius: 50%; background: currentColor; }
 .size-btn.selected { outline: 2px solid var(--accent); outline-offset: 1px; }

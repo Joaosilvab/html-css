@@ -537,38 +537,42 @@
     }
   }
 
-  // ---------- Desenhar / escrever com o dedo ----------
+  // ---------- Escrever com o dedo direto na nota (junto com o texto) ----------
   const PEN_COLORS = ['#111111', '#ffffff', '#d32f2f', '#ef6c00', '#2e7d32', '#1565c0', '#6a1b9a', '#ad1457'];
-  const PEN_SIZES = [[2, 'Fino'], [4, 'Médio'], [8, 'Grosso']];
-  const pad = (() => {
-    const el = document.createElement('div');
-    el.className = 'draw-pad';
-    el.hidden = true;
-    el.innerHTML = `
-      <div class="draw-top">
-        <button type="button" class="btn" data-act="cancel">Cancelar</button>
-        <span class="draw-title">Escreva ou desenhe com o dedo</span>
-        <button type="button" class="btn primary" data-act="ok">Inserir</button>
-      </div>
-      <div class="draw-area"><canvas></canvas></div>
-      <div class="draw-bottom">
-        <div class="draw-colors"></div>
-        <div class="draw-tools">
-          <span class="draw-sizes"></span>
-          <button type="button" class="rt-btn" data-act="undo" title="Desfazer">↶</button>
-          <button type="button" class="rt-btn" data-act="clear" title="Limpar tudo">🗑</button>
-        </div>
-      </div>`;
-    document.body.appendChild(el);
-    const area = el.querySelector('.draw-area');
-    const canvas = el.querySelector('canvas');
-    const ctx = canvas.getContext('2d');
-    let strokes = [], current = null, color = PEN_COLORS[0], size = 4, onDone = null;
+  const PEN_SIZES = [[2, 'Fino'], [4, 'Médio'], [7, 'Grosso']];
+  const INK_START_H = 200;
 
-    const colorsEl = el.querySelector('.draw-colors');
+  const ink = (() => {
+    // área transparente que fica por cima de um espaço aberto no meio do texto
+    const area = document.createElement('div');
+    area.className = 'ink-area';
+    area.hidden = true;
+    const canvas = document.createElement('canvas');
+    area.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+
+    // barrinha flutuante embaixo da tela (cores, espessura, desfazer, pronto)
+    const tools = document.createElement('div');
+    tools.className = 'ink-tools';
+    tools.hidden = true;
+    tools.innerHTML = `
+      <div class="ink-row ink-colors"></div>
+      <div class="ink-row">
+        <span class="ink-sizes"></span>
+        <button type="button" class="rt-btn" data-act="more" title="Mais espaço para escrever">↓</button>
+        <button type="button" class="rt-btn" data-act="undo" title="Desfazer">↶</button>
+        <button type="button" class="rt-btn" data-act="cancel" title="Cancelar">✕</button>
+        <button type="button" class="btn primary ink-done" data-act="ok">Pronto</button>
+      </div>`;
+    document.body.appendChild(tools);
+
+    let strokes = [], current = null, color = PEN_COLORS[0], size = 4;
+    let spot = null, target = null, host = null, height = INK_START_H;
+
+    const colorsEl = tools.querySelector('.ink-colors');
     const paintSel = () => {
       colorsEl.querySelectorAll('.swatch').forEach(s => s.classList.toggle('selected', s.dataset.c === color));
-      el.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('selected', +b.dataset.s === size));
+      tools.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('selected', +b.dataset.s === size));
     };
     for (const c of PEN_COLORS) {
       const s = document.createElement('button');
@@ -586,16 +590,22 @@
       b.type = 'button'; b.className = 'rt-btn size-btn'; b.dataset.s = s; b.title = label;
       b.innerHTML = `<span style="width:${s + 4}px;height:${s + 4}px"></span>`;
       b.addEventListener('click', () => { size = s; paintSel(); });
-      el.querySelector('.draw-sizes').appendChild(b);
+      tools.querySelector('.ink-sizes').appendChild(b);
     }
 
-    function resize() {
-      const r = area.getBoundingClientRect();
+    function place() {
+      if (!spot) return;
+      spot.style.height = height + 'px';
+      const hr = host.getBoundingClientRect(), sr = spot.getBoundingClientRect();
+      area.style.left = (sr.left - hr.left) + 'px';
+      area.style.top = (sr.top - hr.top) + 'px';
+      area.style.width = sr.width + 'px';
+      area.style.height = height + 'px';
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.round(r.width * dpr);
-      canvas.height = Math.round(r.height * dpr);
-      canvas.style.width = r.width + 'px';
-      canvas.style.height = r.height + 'px';
+      canvas.width = Math.round(sr.width * dpr);
+      canvas.height = Math.round(height * dpr);
+      canvas.style.width = sr.width + 'px';
+      canvas.style.height = height + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       redraw();
     }
@@ -637,56 +647,86 @@
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
 
-    // recorta só a parte desenhada e devolve PNG com fundo transparente
+    // mantém a largura toda (a letra fica na mesma posição em que foi escrita)
+    // e corta só o espaço vazio em cima e embaixo; fundo transparente
     function exportPng() {
       if (!strokes.length) return Promise.resolve(null);
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
       for (const st of strokes) for (const p of st.points) {
-        minX = Math.min(minX, p.x - st.size); minY = Math.min(minY, p.y - st.size);
-        maxX = Math.max(maxX, p.x + st.size); maxY = Math.max(maxY, p.y + st.size);
+        minY = Math.min(minY, p.y - st.size); maxY = Math.max(maxY, p.y + st.size);
       }
-      const pad = 12, scale = 2;
-      minX -= pad; minY -= pad; maxX += pad; maxY += pad;
-      const w = Math.max(1, Math.round((maxX - minX) * scale)), h = Math.max(1, Math.round((maxY - minY) * scale));
+      minY = Math.max(0, minY - 6); maxY = Math.min(height, maxY + 6);
+      const width = parseFloat(canvas.style.width), scale = 2;
       const out = document.createElement('canvas');
-      out.width = w; out.height = h;
+      out.width = Math.round(width * scale);
+      out.height = Math.max(1, Math.round((maxY - minY) * scale));
       const c = out.getContext('2d');
-      c.setTransform(scale, 0, 0, scale, -minX * scale, -minY * scale);
+      c.setTransform(scale, 0, 0, scale, 0, -minY * scale);
       strokes.forEach(st => drawStroke(c, st));
       return new Promise(res => out.toBlob(res, 'image/png'));
     }
 
     function close() {
-      el.hidden = true;
-      document.body.classList.remove('drawing');
-      strokes = []; current = null;
-      window.removeEventListener('resize', resize);
+      area.hidden = true; tools.hidden = true;
+      document.body.classList.remove('inking');
+      if (target) target.contentEditable = 'true';
+      window.removeEventListener('resize', place);
+      strokes = []; current = null; spot = null;
     }
-    el.addEventListener('click', async e => {
-      const act = e.target.closest('[data-act]') && e.target.closest('[data-act]').dataset.act;
+
+    tools.addEventListener('click', async e => {
+      const b = e.target.closest('[data-act]');
+      if (!b) return;
+      const act = b.dataset.act;
       if (act === 'undo') { strokes.pop(); redraw(); }
-      else if (act === 'clear') { if (!strokes.length || confirm('Apagar todo o desenho?')) { strokes = []; redraw(); } }
-      else if (act === 'cancel') { if (!strokes.length || confirm('Descartar o desenho?')) close(); }
-      else if (act === 'ok') {
-        const blob = await exportPng();
-        const cb = onDone;
+      else if (act === 'more') { height += 160; place(); }
+      else if (act === 'cancel') {
+        if (strokes.length && !confirm('Descartar o que escreveu?')) return;
+        if (spot) spot.remove();
         close();
-        if (blob && cb) cb(blob);
+      } else if (act === 'ok') {
+        const blob = await exportPng();
+        const s = spot, t = target;
+        if (!blob) { s.remove(); close(); return; }
+        try {
+          const id = 'desenho' + uid();
+          await imgDB.put(id, blob);
+          const img = document.createElement('img');
+          img.setAttribute('data-img', id);
+          img.alt = '';
+          s.replaceWith(img);
+          close();
+          hydrateImages(t);
+          t.dispatchEvent(new Event('input', { bubbles: true }));
+        } catch { toast('Não consegui salvar'); s.remove(); close(); }
       }
     });
 
     return {
-      open(bg, done) {
-        onDone = done;
-        el.style.setProperty('--pad-bg', bg || 'var(--card-solid)');
-        // caneta clara em fundo claro não aparece: começa com uma cor que contrasta
-        color = bg && luminance(bg) < 0.3 ? '#ffffff' : '#111111';
-        el.hidden = false;
-        document.body.classList.add('drawing');
+      open(editable, bg) {
+        if (spot) return;
+        target = editable;
+        host = editable.closest('.editor-inner') || editable.parentElement;
+        if (!area.parentElement || area.parentElement !== host) host.appendChild(area);
+        // abre um espaço no ponto do cursor (ou no fim do texto)
+        restoreSelection(target);
+        const sel = document.getSelection();
+        const r = sel.getRangeAt(0);
+        r.collapse(false);
+        spot = document.createElement('div');
+        spot.className = 'ink-spot';
+        spot.contentEditable = 'false';
+        r.insertNode(spot);
+        target.contentEditable = 'false'; // sem teclado enquanto escreve com o dedo
         if (document.activeElement) document.activeElement.blur();
+        height = INK_START_H;
+        strokes = [];
+        color = bg && luminance(bg) < 0.3 ? '#ffffff' : '#111111';
         paintSel();
-        requestAnimationFrame(resize);
-        window.addEventListener('resize', resize);
+        area.hidden = false; tools.hidden = false;
+        document.body.classList.add('inking');
+        requestAnimationFrame(() => { place(); spot.scrollIntoView({ block: 'center', behavior: 'smooth' }); });
+        window.addEventListener('resize', place);
       }
     };
   })();
@@ -822,11 +862,9 @@
     });
     bar.appendChild(photoInput);
     btn('📷', 'Adicionar foto', () => photoInput.click());
-    btn('✍️', 'Escrever ou desenhar com o dedo', () => {
+    btn('✍️', 'Escrever com o dedo', () => {
       const n = current();
-      pad.open(n && n.color ? n.color : '', blob => {
-        insertImageBlob(target, blob, 'desenho').catch(() => toast('Não consegui salvar o desenho'));
-      });
+      ink.open(target, n && n.color ? n.color : '');
     });
 
     const palette = (label, colors, apply, extra) => {
@@ -1216,7 +1254,7 @@
   setTimeout(cleanupImages, 3000);
 
   // ---------- Versão e "Atualizar app" ----------
-  const APP_VERSION = 15;
+  const APP_VERSION = 16;
   $('#appVersion').textContent = 'Versão ' + APP_VERSION;
   if (/[?&]v=/.test(location.search)) history.replaceState(null, '', location.pathname);
   $('#btnUpdate').addEventListener('click', async () => {
