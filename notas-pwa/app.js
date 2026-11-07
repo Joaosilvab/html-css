@@ -537,6 +537,169 @@
     }
   }
 
+  // ---------- Desenhar / escrever com o dedo ----------
+  const PEN_COLORS = ['#111111', '#ffffff', '#d32f2f', '#ef6c00', '#2e7d32', '#1565c0', '#6a1b9a', '#ad1457'];
+  const PEN_SIZES = [[2, 'Fino'], [4, 'Médio'], [8, 'Grosso']];
+  const pad = (() => {
+    const el = document.createElement('div');
+    el.className = 'draw-pad';
+    el.hidden = true;
+    el.innerHTML = `
+      <div class="draw-top">
+        <button type="button" class="btn" data-act="cancel">Cancelar</button>
+        <span class="draw-title">Escreva ou desenhe com o dedo</span>
+        <button type="button" class="btn primary" data-act="ok">Inserir</button>
+      </div>
+      <div class="draw-area"><canvas></canvas></div>
+      <div class="draw-bottom">
+        <div class="draw-colors"></div>
+        <div class="draw-tools">
+          <span class="draw-sizes"></span>
+          <button type="button" class="rt-btn" data-act="undo" title="Desfazer">↶</button>
+          <button type="button" class="rt-btn" data-act="clear" title="Limpar tudo">🗑</button>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    const area = el.querySelector('.draw-area');
+    const canvas = el.querySelector('canvas');
+    const ctx = canvas.getContext('2d');
+    let strokes = [], current = null, color = PEN_COLORS[0], size = 4, onDone = null;
+
+    const colorsEl = el.querySelector('.draw-colors');
+    const paintSel = () => {
+      colorsEl.querySelectorAll('.swatch').forEach(s => s.classList.toggle('selected', s.dataset.c === color));
+      el.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('selected', +b.dataset.s === size));
+    };
+    for (const c of PEN_COLORS) {
+      const s = document.createElement('button');
+      s.type = 'button'; s.className = 'swatch'; s.style.background = c; s.dataset.c = c; s.title = c;
+      s.addEventListener('click', () => { color = c; paintSel(); });
+      colorsEl.appendChild(s);
+    }
+    const custom = document.createElement('label');
+    custom.className = 'swatch swatch-custom'; custom.title = 'Outra cor';
+    const ci = document.createElement('input'); ci.type = 'color';
+    ci.addEventListener('change', () => { color = ci.value; paintSel(); });
+    custom.appendChild(ci); colorsEl.appendChild(custom);
+    for (const [s, label] of PEN_SIZES) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'rt-btn size-btn'; b.dataset.s = s; b.title = label;
+      b.innerHTML = `<span style="width:${s + 4}px;height:${s + 4}px"></span>`;
+      b.addEventListener('click', () => { size = s; paintSel(); });
+      el.querySelector('.draw-sizes').appendChild(b);
+    }
+
+    function resize() {
+      const r = area.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(r.width * dpr);
+      canvas.height = Math.round(r.height * dpr);
+      canvas.style.width = r.width + 'px';
+      canvas.style.height = r.height + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      redraw();
+    }
+    function drawStroke(c, st) {
+      const p = st.points;
+      c.strokeStyle = st.color; c.fillStyle = st.color;
+      c.lineCap = 'round'; c.lineJoin = 'round'; c.lineWidth = st.size;
+      if (p.length === 1) { c.beginPath(); c.arc(p[0].x, p[0].y, st.size / 2, 0, Math.PI * 2); c.fill(); return; }
+      c.beginPath();
+      c.moveTo(p[0].x, p[0].y);
+      for (let i = 1; i < p.length - 1; i++) {
+        const mx = (p[i].x + p[i + 1].x) / 2, my = (p[i].y + p[i + 1].y) / 2;
+        c.quadraticCurveTo(p[i].x, p[i].y, mx, my);
+      }
+      const last = p[p.length - 1];
+      c.lineTo(last.x, last.y);
+      c.stroke();
+    }
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      strokes.forEach(st => drawStroke(ctx, st));
+    }
+    const pos = e => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    canvas.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      canvas.setPointerCapture(e.pointerId);
+      current = { color, size, points: [pos(e)] };
+      strokes.push(current);
+      redraw();
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (!current) return;
+      e.preventDefault();
+      const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+      for (const ev of evs) current.points.push(pos(ev));
+      redraw();
+    });
+    const end = () => { current = null; };
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+
+    // recorta só a parte desenhada e devolve PNG com fundo transparente
+    function exportPng() {
+      if (!strokes.length) return Promise.resolve(null);
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const st of strokes) for (const p of st.points) {
+        minX = Math.min(minX, p.x - st.size); minY = Math.min(minY, p.y - st.size);
+        maxX = Math.max(maxX, p.x + st.size); maxY = Math.max(maxY, p.y + st.size);
+      }
+      const pad = 12, scale = 2;
+      minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+      const w = Math.max(1, Math.round((maxX - minX) * scale)), h = Math.max(1, Math.round((maxY - minY) * scale));
+      const out = document.createElement('canvas');
+      out.width = w; out.height = h;
+      const c = out.getContext('2d');
+      c.setTransform(scale, 0, 0, scale, -minX * scale, -minY * scale);
+      strokes.forEach(st => drawStroke(c, st));
+      return new Promise(res => out.toBlob(res, 'image/png'));
+    }
+
+    function close() {
+      el.hidden = true;
+      document.body.classList.remove('drawing');
+      strokes = []; current = null;
+      window.removeEventListener('resize', resize);
+    }
+    el.addEventListener('click', async e => {
+      const act = e.target.closest('[data-act]') && e.target.closest('[data-act]').dataset.act;
+      if (act === 'undo') { strokes.pop(); redraw(); }
+      else if (act === 'clear') { if (!strokes.length || confirm('Apagar todo o desenho?')) { strokes = []; redraw(); } }
+      else if (act === 'cancel') { if (!strokes.length || confirm('Descartar o desenho?')) close(); }
+      else if (act === 'ok') {
+        const blob = await exportPng();
+        const cb = onDone;
+        close();
+        if (blob && cb) cb(blob);
+      }
+    });
+
+    return {
+      open(bg, done) {
+        onDone = done;
+        el.style.setProperty('--pad-bg', bg || 'var(--card-solid)');
+        // caneta clara em fundo claro não aparece: começa com uma cor que contrasta
+        color = bg && luminance(bg) < 0.3 ? '#ffffff' : '#111111';
+        el.hidden = false;
+        document.body.classList.add('drawing');
+        if (document.activeElement) document.activeElement.blur();
+        paintSel();
+        requestAnimationFrame(resize);
+        window.addEventListener('resize', resize);
+      }
+    };
+  })();
+
+  async function insertImageBlob(target, blob, prefix = '') {
+    const id = prefix + uid();
+    await imgDB.put(id, blob);
+    restoreSelection(target);
+    document.execCommand('insertHTML', false, `<img data-img="${id}" alt=""><br>`);
+    hydrateImages(target);
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   function noteImageIds(n) { return [...(n.html || '').matchAll(/data-img="([a-z0-9]+)"/gi)].map(m => m[1]); }
 
   // apaga fotos que nenhuma nota usa mais (roda ao abrir o app)
@@ -659,6 +822,12 @@
     });
     bar.appendChild(photoInput);
     btn('📷', 'Adicionar foto', () => photoInput.click());
+    btn('✍️', 'Escrever ou desenhar com o dedo', () => {
+      const n = current();
+      pad.open(n && n.color ? n.color : '', blob => {
+        insertImageBlob(target, blob, 'desenho').catch(() => toast('Não consegui salvar o desenho'));
+      });
+    });
 
     const palette = (label, colors, apply, extra) => {
       const p = document.createElement('div');
@@ -1047,7 +1216,7 @@
   setTimeout(cleanupImages, 3000);
 
   // ---------- Versão e "Atualizar app" ----------
-  const APP_VERSION = 14;
+  const APP_VERSION = 15;
   $('#appVersion').textContent = 'Versão ' + APP_VERSION;
   if (/[?&]v=/.test(location.search)) history.replaceState(null, '', location.pathname);
   $('#btnUpdate').addEventListener('click', async () => {
