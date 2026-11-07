@@ -890,8 +890,11 @@
     buildSwatches($('#editTitleSwatches'), n.titleColor || '', c => { n.titleColor = c; touch(n); paintEditor(n); }, TEXT_COLORS, true);
     buildSwatches($('#editTextSwatches'), n.textColor || '', c => { n.textColor = c; touch(n); paintEditor(n); }, TEXT_COLORS, true);
     paintEditor(n);
-    editor.scrollTop = 0;
-    editor.showModal();
+    // o editor vira a página (sem janela flutuante): no iPhone o cursor fica no lugar certo
+    if (!editor.open) listScroll = window.scrollY;
+    document.body.classList.add('editing');
+    if (!editor.open) editor.show();
+    window.scrollTo(0, 0);
     // nota salva abre sem teclado: o foco fica no botão Voltar.
     // O teclado só aparece quando tocar no título ou no texto.
     if (isNew) editTitle.focus();
@@ -909,6 +912,9 @@
     panel.hidden = !open;
     b.setAttribute('aria-expanded', String(open));
   }));
+
+  let listScroll = 0;
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && editor.open) editor.close(); });
 
   function touch(n) { n.updated = Date.now(); saveNotes(); render(); }
 
@@ -943,8 +949,9 @@
     const n = current();
     if (n && !n.title.trim() && !n.body.trim()) { notes = notes.filter(x => x !== n); saveNotes(); render(); }
     editingId = null;
+    document.body.classList.remove('editing');
+    window.scrollTo(0, listScroll);
   });
-  editor.addEventListener('click', e => { if (e.target === editor) editor.close(); });
 
   // ---------- Toast ----------
   let toastTimer;
@@ -1040,7 +1047,7 @@
   setTimeout(cleanupImages, 3000);
 
   // ---------- Versão e "Atualizar app" ----------
-  const APP_VERSION = 13;
+  const APP_VERSION = 14;
   $('#appVersion').textContent = 'Versão ' + APP_VERSION;
   if (/[?&]v=/.test(location.search)) history.replaceState(null, '', location.pathname);
   $('#btnUpdate').addEventListener('click', async () => {

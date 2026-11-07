@@ -318,23 +318,28 @@ mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: in
 
 /* editor em tela cheia */
 #editor.modal {
+  position: static;
   width: 100%;
   max-width: 100%;
-  height: 100%;
-  height: 100dvh;
-  max-height: 100%;
-  max-height: 100dvh;
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-height: none;
   margin: 0;
   border-radius: 0;
   box-shadow: none;
+  overflow: visible;
 }
+body.editing > .topbar,
+body.editing > main,
+body.editing > .fab { display: none; }
 #editor .editor-inner {
   min-height: 100%;
   max-width: 860px;
   margin: 0 auto;
   padding-top: max(10px, env(safe-area-inset-top));
 }
-#editor #editBody { flex: 1; min-height: 40vh; max-height: none; }
+#editor #editBody { flex: 1; min-height: 40vh; max-height: none; overflow: visible; }
 .editor-top { display: flex; align-items: center; gap: 8px; margin: 0 -8px; }
 .editor-top-title { font-size: .9rem; opacity: .6; }
 .back-btn { font-size: 1.5rem; color: inherit; }
@@ -346,7 +351,8 @@ mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: in
 .rich { white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; -webkit-user-modify: read-write; cursor: text; }
 .composer .rich { min-height: 1.6em; max-height: 400px; }
 .editor-inner .rich { max-height: 55vh; }
-.rich:empty::before { content: attr(data-placeholder); opacity: .5; pointer-events: none; }
+.rich { position: relative; }
+.rich:empty::before { content: attr(data-placeholder); opacity: .5; pointer-events: none; position: absolute; left: 0; top: 0; }
 .rich ul, .rich ol, .note-body ul, .note-body ol { margin: 0; padding-left: 1.4em; }
 
 .rt-toolbar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
@@ -452,12 +458,12 @@ img.missing { display: none; }
   color: var(--text);
   z-index: 30;
   transform: translateX(100%);
-  transition: transform .25s ease;
+  transition: transform .25s ease, visibility .25s;
   display: flex;
   flex-direction: column;
-  box-shadow: -10px 0 40px rgba(0, 0, 0, .2);
+  visibility: hidden;
 }
-.drawer.open { transform: none; }
+.drawer.open { transform: none; visibility: visible; box-shadow: -10px 0 40px rgba(0, 0, 0, .2); }
 .drawer-head {
   display: flex;
   justify-content: space-between;

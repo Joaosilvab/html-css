@@ -1,5 +1,5 @@
 /* Service worker: deixa o app funcionando offline e sempre pega a versão nova quando há internet */
-const VERSION = 13;
+const VERSION = 14;
 const CACHE = 'notas-v' + VERSION;
 const ASSETS = [
   './',
