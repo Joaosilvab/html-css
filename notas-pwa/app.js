@@ -306,8 +306,13 @@
   });
 
   // ---------- Backup ----------
-  $('#btnExport').addEventListener('click', () => {
-    const data = { app: 'minhas-notas', version: 1, exported: new Date().toISOString(), theme, notes };
+  $('#btnExport').addEventListener('click', async () => {
+    const fotos = {};
+    for (const id of new Set(notes.flatMap(noteImageIds))) {
+      const blob = await imgDB.get(id).catch(() => null);
+      if (blob) fotos[id] = await blobToDataUrl(blob);
+    }
+    const data = { app: 'minhas-notas', version: 2, exported: new Date().toISOString(), theme, notes, fotos };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -324,6 +329,12 @@
       const data = JSON.parse(await file.text());
       const incoming = Array.isArray(data) ? data : data.notes;
       if (!Array.isArray(incoming)) throw new Error();
+      if (data.fotos && typeof data.fotos === 'object') {
+        for (const [id, url] of Object.entries(data.fotos)) {
+          if (!/^[a-z0-9]{4,40}$/i.test(id) || typeof url !== 'string' || !url.startsWith('data:image/')) continue;
+          try { await imgDB.put(id, await dataUrlToBlob(url)); imgUrls.delete(id); } catch { /* ignora */ }
+        }
+      }
       const ids = new Set(notes.map(n => n.id));
       let added = 0;
       for (const n of incoming) {
@@ -367,6 +378,16 @@
         if (node.nodeType !== 1) continue;
         const tag = node.tagName;
         if (/^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|IFRAME|OBJECT)$/.test(tag)) continue;
+        if (tag === 'IMG') {
+          const id = node.getAttribute('data-img');
+          if (id && /^[a-z0-9]{4,40}$/i.test(id)) {
+            const img = document.createElement('img');
+            img.setAttribute('data-img', id);
+            img.setAttribute('alt', '');
+            to.appendChild(img);
+          }
+          continue;
+        }
         if (!RICH_TAGS.has(tag)) { walk(node, to); continue; }
         const el = document.createElement(tag === 'FONT' ? 'span' : tag.toLowerCase());
         const styles = [];
@@ -396,6 +417,7 @@
         if (c.nodeType === 3) text += c.nodeValue;
         else if (c.nodeType === 1) {
           if (c.tagName === 'BR') { text += '\n'; continue; }
+          if (c.tagName === 'IMG') { text += '📷'; continue; }
           const block = /^(DIV|P|LI|UL|OL)$/.test(c.tagName);
           if (block && text && !text.endsWith('\n')) text += '\n';
           walk(c);
@@ -430,6 +452,106 @@
       t.replaceWith(frag);
     }
   }
+
+  // ---------- Fotos (guardadas no IndexedDB, fora do localStorage) ----------
+  const imgDB = (() => {
+    let dbp;
+    const open = () => dbp || (dbp = new Promise((res, rej) => {
+      const r = indexedDB.open('notas-fotos', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('fotos');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    }));
+    const tx = async (mode, fn) => {
+      const db = await open();
+      return new Promise((res, rej) => {
+        const t = db.transaction('fotos', mode);
+        const out = fn(t.objectStore('fotos'));
+        t.oncomplete = () => res(out && 'result' in out ? out.result : undefined);
+        t.onerror = () => rej(t.error);
+      });
+    };
+    return {
+      put: (id, blob) => tx('readwrite', s => s.put(blob, id)),
+      get: id => tx('readonly', s => s.get(id)),
+      del: id => tx('readwrite', s => s.delete(id)),
+      keys: () => tx('readonly', s => s.getAllKeys())
+    };
+  })();
+
+  const imgUrls = new Map();
+  async function imgUrl(id) {
+    if (imgUrls.has(id)) return imgUrls.get(id);
+    const blob = await imgDB.get(id).catch(() => null);
+    const url = blob ? URL.createObjectURL(blob) : '';
+    imgUrls.set(id, url);
+    return url;
+  }
+  // coloca o endereço de cada foto nas tags <img data-img>
+  function hydrateImages(root) {
+    root.querySelectorAll('img[data-img]:not([src])').forEach(async img => {
+      const url = await imgUrl(img.dataset.img);
+      if (url) img.src = url; else img.classList.add('missing');
+      img.addEventListener('load', () => {
+        const body = img.closest('.note-body');
+        if (body && body.scrollHeight > body.clientHeight + 2) body.classList.add('clip');
+      }, { once: true });
+    });
+  }
+
+  // reduz a foto (no máximo 1600px, JPEG) para ocupar pouco espaço
+  function compressImage(file, max = 1600, quality = 0.82) {
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.naturalWidth * scale);
+        c.height = Math.round(img.naturalHeight * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(b => (b ? res(b) : rej(new Error('falhou'))), 'image/jpeg', quality);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagem inválida')); };
+      img.src = url;
+    });
+  }
+
+  async function insertPhotos(target, files) {
+    let added = 0;
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue;
+      try {
+        const blob = await compressImage(file);
+        const id = uid();
+        await imgDB.put(id, blob);
+        restoreSelection(target);
+        document.execCommand('insertHTML', false, `<img data-img="${id}" alt=""><br>`);
+        added++;
+      } catch { toast('Não consegui adicionar uma das fotos'); }
+    }
+    if (added) {
+      hydrateImages(target);
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+
+  function noteImageIds(n) { return [...(n.html || '').matchAll(/data-img="([a-z0-9]+)"/gi)].map(m => m[1]); }
+
+  // apaga fotos que nenhuma nota usa mais (roda ao abrir o app)
+  async function cleanupImages() {
+    try {
+      const used = new Set(notes.flatMap(noteImageIds));
+      const keys = await imgDB.keys();
+      for (const k of keys) if (!used.has(k)) await imgDB.del(k);
+    } catch { /* ignora */ }
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
+  }
+  async function dataUrlToBlob(url) { return (await fetch(url)).blob(); }
 
   // guarda a última seleção dentro de um campo formatado
   let savedRange = null;
@@ -524,6 +646,19 @@
     const fontBtn = btn('<span style="font-family:Georgia,serif">Aa</span>', 'Fonte do trecho selecionado', () => toggle(fontPal, fontBtn), true);
     const hiBtn = btn('🖍', 'Marca-texto', () => toggle(hiPal, hiBtn));
     btn('⌫', 'Limpar formatação do trecho', () => format(target, 'removeFormat'));
+    sep();
+    const photoInput = document.createElement('input');
+    photoInput.type = 'file';
+    photoInput.accept = 'image/*';
+    photoInput.multiple = true;
+    photoInput.hidden = true;
+    photoInput.addEventListener('change', () => {
+      const files = [...photoInput.files];
+      photoInput.value = '';
+      if (files.length) insertPhotos(target, files);
+    });
+    bar.appendChild(photoInput);
+    btn('📷', 'Adicionar foto', () => photoInput.click());
 
     const palette = (label, colors, apply, extra) => {
       const p = document.createElement('div');
@@ -710,6 +845,7 @@
       el.appendChild(card);
       if (bodyEl && bodyEl.scrollHeight > bodyEl.clientHeight + 2) bodyEl.classList.add('clip');
     }
+    hydrateImages(el);
     $('#empty').hidden = list.length > 0;
     $('#empty').textContent = list.length || !query ? 'Nenhuma nota ainda. Toque no + para criar a primeira ✍️' : 'Nenhuma nota encontrada.';
   }
@@ -747,6 +883,7 @@
     if (!n) return;
     editTitle.value = n.title;
     editBody.innerHTML = noteHtml(n);
+    hydrateImages(editBody);
     editFont.value = n.font || '';
     closeOptPanels();
     buildSwatches($('#editSwatches'), n.color, c => { n.color = c; touch(n); paintEditor(n); });
@@ -900,8 +1037,10 @@
     if (el && document.activeElement !== el && !el.disabled) el.focus();
   }, { passive: true });
 
+  setTimeout(cleanupImages, 3000);
+
   // ---------- Versão e "Atualizar app" ----------
-  const APP_VERSION = 12;
+  const APP_VERSION = 13;
   $('#appVersion').textContent = 'Versão ' + APP_VERSION;
   if (/[?&]v=/.test(location.search)) history.replaceState(null, '', location.pathname);
   $('#btnUpdate').addEventListener('click', async () => {

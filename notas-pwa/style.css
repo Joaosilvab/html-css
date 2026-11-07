@@ -380,6 +380,16 @@ mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: in
   white-space: nowrap;
 }
 .font-chip:active { background: rgba(127, 127, 127, .3); }
+.rich img, .note-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  margin: 6px 0;
+}
+.rich img { cursor: default; }
+.note-body img { width: 100%; max-height: 110px; object-fit: cover; }
+img.missing { display: none; }
 .rt-hint { flex-basis: 100%; font-size: .75rem; opacity: .6; }
 .editor-opts { display: flex; flex-direction: column; gap: 8px; font-size: .9rem; }
 .opt-buttons { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

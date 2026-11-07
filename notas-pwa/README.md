@@ -19,6 +19,7 @@ Dá para mudar praticamente tudo no visual.
 
 - **Texto formatado**: selecione uma palavra ou linha e mude só a cor ou a fonte dela, use marca-texto, negrito, itálico e sublinhado
 - Tela inicial só com os cartões (compactos) e um botão **+** para criar nota
+- **Fotos** na nota (câmera ou galeria) pelo botão 📷 — reduzidas automaticamente e incluídas no backup
 - Criar, editar, fixar 📌, duplicar e excluir (com "Desfazer")
 - Busca com destaque
 - Salva automaticamente no aparelho (localStorage) e funciona **offline**
